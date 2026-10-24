@@ -123,9 +123,9 @@ class ServiceTests(unittest.TestCase):
             model = "fake"
             calls = []
 
-            def complete(self, messages):
+            def complete(self, messages, *, json_mode=False):
                 self.calls.append(messages)
-                return '{"kind":"learn"}' if "JSON" in messages[0]["content"] else "你好，我是 Mori。"
+                return '{"kind":"learn"}' if json_mode else "你好，我是 Mori。"
 
         model = FakeModel()
         self.server.model = model
@@ -148,7 +148,7 @@ class ServiceTests(unittest.TestCase):
 
     def test_ai_harmful_proposal_is_blocked(self):
         self.server.model = type("BadModel", (), {
-            "ready": True, "model": "fake", "complete": lambda _self, _messages: '{"kind":"attack"}',
+            "ready": True, "model": "fake", "complete": lambda _self, _messages, **_kwargs: '{"kind":"attack"}',
         })()
         self.request("POST", "/residents", {"id": "mori", "name": "Mori"})
         status, result = self.request("POST", "/world/ai-tick", {})

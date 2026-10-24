@@ -61,6 +61,8 @@ python -m cyber_habitat --db data/world.sqlite3 serve
 
 For a remote provider, use an HTTPS base URL and a process environment API key. Refresh the browser; it will show whether the model is configured. The browser can then speak with a resident and ask the AI to propose a day's action. The model call from this machine has been exercised only against a local fake-model test server; a real model conversation is still unverified. The existing DSH desktop profile is not automatically shared with this standalone service.
 
+For direct DeepSeek use, its current [official API guide](https://api-docs.deepseek.com/guides/search_fetch) lists `https://api.deepseek.com` and `deepseek-flash`. Set `HABITAT_AI_BASE_URL` and `HABITAT_AI_MODEL` to those values, and set `HABITAT_AI_API_KEY` in the process environment. This is an explicit opt-in: sending a chat message or running an AI turn sends the resident's state and relevant prompt context to that API. Do not paste the key into chat or commit it. The service never forwards its key to the browser.
+
 ## Local API
 
 See [service API contract](docs/service-api.md) for routes, request fields, limits, and response codes. Every action passes through World Director rules. `attack` is accepted as a known action kind so the Director can record and deny it; unknown kinds are rejected before dispatch.

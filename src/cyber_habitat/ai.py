@@ -53,20 +53,27 @@ class OpenAICompatibleModel:
         hostname = urlsplit(self.base_url).hostname
         return bool(self.api_key or hostname in {"localhost", "127.0.0.1", "::1"})
 
-    def complete(self, messages: list[dict[str, str]]) -> str:
+    def complete(self, messages: list[dict[str, str]], *, json_mode: bool = False) -> str:
         if not self.ready:
             raise ModelUnavailable("AI model is not configured")
         if not self.api_key and urlsplit(self.base_url).hostname not in {"localhost", "127.0.0.1", "::1"}:
             raise ModelUnavailable("AI API key is not configured")
         url = self.base_url + "/chat/completions"
-        payload = json.dumps({"model": self.model, "messages": messages, "stream": False,
-                              "temperature": 0.7, "max_tokens": 350}).encode("utf-8")
+        request_body: dict[str, object] = {"model": self.model, "messages": messages,
+                                           "stream": False, "max_tokens": 350}
+        if self.base_url == "https://api.deepseek.com":
+            request_body["thinking"] = {"type": "disabled"}
+        else:
+            request_body["temperature"] = 0.7
+        if json_mode:
+            request_body["response_format"] = {"type": "json_object"}
+        payload = json.dumps(request_body).encode("utf-8")
         headers = {"Content-Type": "application/json"}
         if self.api_key:
             headers["Authorization"] = "Bearer " + self.api_key
         request = Request(url, data=payload, headers=headers, method="POST")
         try:
-            with build_opener(_NoRedirect).open(request, timeout=20) as response:
+            with build_opener(_NoRedirect).open(request, timeout=45) as response:
                 raw = response.read(131_073)
         except Exception as exc:
             raise ModelUnavailable(f"AI model request failed: {type(exc).__name__}") from exc

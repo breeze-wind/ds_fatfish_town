@@ -2,6 +2,7 @@ import json
 import sys
 import threading
 import unittest
+from unittest.mock import patch
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 
@@ -11,6 +12,34 @@ from cyber_habitat.ai import ModelUnavailable, OpenAICompatibleModel
 
 
 class ModelTests(unittest.TestCase):
+    def test_deepseek_payload_is_explicit_and_json_mode_is_supported(self):
+        captured = {}
+
+        class Response:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *_args):
+                return False
+
+            def read(self, _limit):
+                return b'{"choices":[{"message":{"content":"{\\"kind\\":\\"learn\\"}"}}]}'
+
+        class Opener:
+            def open(self, request, timeout):
+                captured["url"] = request.full_url
+                captured["body"] = json.loads(request.data)
+                captured["timeout"] = timeout
+                return Response()
+
+        with patch("cyber_habitat.ai.build_opener", return_value=Opener()):
+            model = OpenAICompatibleModel("https://api.deepseek.com", "deepseek-flash", "test-only")
+            self.assertEqual(model.complete([{"role": "user", "content": "choose"}], json_mode=True),
+                             '{"kind":"learn"}')
+        self.assertEqual(captured["url"], "https://api.deepseek.com/chat/completions")
+        self.assertEqual(captured["body"]["thinking"], {"type": "disabled"})
+        self.assertEqual(captured["body"]["response_format"], {"type": "json_object"})
+
     def test_configuration_rejects_insecure_remote_url(self):
         with self.assertRaises(ValueError):
             OpenAICompatibleModel("http://example.com/v1", "model", "key")

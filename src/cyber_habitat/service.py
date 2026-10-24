@@ -226,7 +226,7 @@ class HabitatRequestHandler(BaseHTTPRequestHandler):
                           {"role": "user", "content":
                            f"名字：{resident.name}；精力：{resident.energy}；安全：{resident.safety}；成长：{resident.growth}"}]
                 try:
-                    raw = self.server.model.complete(prompt)
+                    raw = self.server.model.complete(prompt, json_mode=True)
                     proposal = json.loads(raw)
                     kind = ActionKind(proposal["kind"])
                     if set(proposal) != {"kind"}:
