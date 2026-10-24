@@ -163,6 +163,17 @@ class ServiceTests(unittest.TestCase):
         self.assertEqual(self.request("POST", "/world/ai-tick", {})[0], 503)
         self.assertEqual(self.request("GET", "/residents/mori/conversation")[1]["messages"], [])
 
+    def test_deepseek_key_is_kept_in_memory_and_never_returned(self):
+        self.server.model.api_key = ""
+        self.assertFalse(self.request("GET", "/ai/status")[1]["configured"])
+        status, result = self.request("POST", "/ai/connect", {"api_key": "test-only-secret"})
+        self.assertEqual(status, 200)
+        self.assertTrue(result["configured"])
+        self.assertNotIn("test-only-secret", json.dumps(result))
+        self.assertNotIn("test-only-secret", json.dumps(self.request("GET", "/ai/status")[1]))
+        self.assertEqual(self.request("POST", "/ai/disconnect", {})[1], {"configured": False})
+        self.assertFalse(self.request("GET", "/ai/status")[1]["configured"])
+
     def test_legacy_event_database_migrates_in_place(self):
         self._stop_server()
         legacy_path = self.temp / "legacy.sqlite3"

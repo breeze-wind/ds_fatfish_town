@@ -45,7 +45,10 @@ class ModelTests(unittest.TestCase):
             OpenAICompatibleModel("http://example.com/v1", "model", "key")
         with self.assertRaises(ValueError):
             OpenAICompatibleModel("https://user:password@example.com/v1", "model", "key")
-        self.assertFalse(OpenAICompatibleModel().ready)
+        default = OpenAICompatibleModel(api_key="")
+        self.assertEqual(default.base_url, "https://api.deepseek.com")
+        self.assertEqual(default.model, "deepseek-flash")
+        self.assertFalse(default.ready)
 
     def test_local_chat_completions_request(self):
         captured = {}

@@ -29,9 +29,14 @@ class _NoRedirect(HTTPRedirectHandler):
 class OpenAICompatibleModel:
     def __init__(self, base_url: str | None = None, model: str | None = None,
                  api_key: str | None = None):
-        self.base_url = (base_url or os.environ.get("HABITAT_AI_BASE_URL", "")).rstrip("/")
-        self.model = model or os.environ.get("HABITAT_AI_MODEL", "")
-        self.api_key = api_key if api_key is not None else os.environ.get("HABITAT_AI_API_KEY", "")
+        self.base_url = (base_url or os.environ.get("HABITAT_AI_BASE_URL", "https://api.deepseek.com")).rstrip("/")
+        self.model = model or os.environ.get("HABITAT_AI_MODEL", "deepseek-flash")
+        if api_key is not None:
+            self.api_key = api_key
+        else:
+            self.api_key = os.environ.get("HABITAT_AI_API_KEY", "")
+            if not self.api_key and self.base_url == "https://api.deepseek.com":
+                self.api_key = os.environ.get("DEEPSEEK_API_KEY", "")
         if self.base_url:
             parsed = urlsplit(self.base_url)
             local = parsed.hostname == "localhost"

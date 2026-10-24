@@ -42,13 +42,19 @@ The demo creates a resident, accepts a harmless action, blocks a hazardous actio
 - External DSH bundle provides resident listing, event queries, and action submission through the conversation tool UI.
 - Docker Compose and Dockerfile prepared for later validation. They have not been built or run.
 
-The standard-library unit and HTTP integration suite passes all 16 tests, including conversation persistence, a local fake-model HTTP exchange, and AI action blocking. The DSH HTTP client has 4 passing Node tests. Docker is unavailable in the current shell, so the container configuration remains unverified.
+The standard-library unit and HTTP integration suite covers conversation persistence, a local fake-model HTTP exchange, AI action blocking, and in-memory key handling. The DSH HTTP client has 4 Node tests. Docker is unavailable in the current shell, so the container configuration remains unverified.
 
 The DSH bundle was installed into a disposable `DSH_HOME` under `work/`; DSH's config dump included the bundle, and its web process started without plugin load errors. A model-driven tool call was not exercised because that would require configuring an LLM account in the isolated profile.
 
 The service listens on loopback by default. The Compose mapping also binds only to host loopback. There is no authentication yet; keep it local and do not expose the service to a LAN or the internet.
 
-### Connect a model to Mori
+### Connect DeepSeek to Mori
+
+Start the service and open its local browser page. DeepSeek's current [official API guide](https://api-docs.deepseek.com/guides/search_fetch) lists `https://api.deepseek.com` and `deepseek-flash`; these are the service defaults. Enter your DeepSeek API key in the page's password field and click **Connect DeepSeek**. The key remains only in server memory and is lost at restart. The status endpoint and browser never return the key. Clicking **Send** or **AI Advance Day** sends the message, recent conversation, and relevant resident state to DeepSeek. No model call occurs when the key is absent.
+
+You may instead set `DEEPSEEK_API_KEY` or `HABITAT_AI_API_KEY` in the service process environment. Do not paste the key into chat or commit it. A real DeepSeek conversation has not yet been exercised on this machine; automated tests use a fake local model and mocked requests.
+
+### Alternative local model
 
 Set these variables in the shell that starts `serve` (the URL is an example of a local OpenAI-compatible server; no such server is installed or running here):
 
@@ -59,9 +65,7 @@ $env:HABITAT_AI_MODEL = 'your-installed-model'
 python -m cyber_habitat --db data/world.sqlite3 serve
 ```
 
-For a remote provider, use an HTTPS base URL and a process environment API key. Refresh the browser; it will show whether the model is configured. The browser can then speak with a resident and ask the AI to propose a day's action. The model call from this machine has been exercised only against a local fake-model test server; a real model conversation is still unverified. The existing DSH desktop profile is not automatically shared with this standalone service.
-
-For direct DeepSeek use, its current [official API guide](https://api-docs.deepseek.com/guides/search_fetch) lists `https://api.deepseek.com` and `deepseek-flash`. Set `HABITAT_AI_BASE_URL` and `HABITAT_AI_MODEL` to those values, and set `HABITAT_AI_API_KEY` in the process environment. This is an explicit opt-in: sending a chat message or running an AI turn sends the resident's state and relevant prompt context to that API. Do not paste the key into chat or commit it. The service never forwards its key to the browser.
+For other remote providers, use an HTTPS base URL and a process environment API key. The existing DSH desktop profile is not automatically shared with this standalone service.
 
 ## Local API
 

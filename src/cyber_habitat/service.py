@@ -194,6 +194,31 @@ class HabitatRequestHandler(BaseHTTPRequestHandler):
         body = self._read_json()
         if body is None:
             return
+        if parsed.path == "/ai/connect":
+            origin = self.headers.get("Origin")
+            if origin and origin != f"http://{self.headers.get('Host', '')}":
+                self._error(HTTPStatus.FORBIDDEN, "cross-origin key entry is not allowed")
+                return
+            if self.server.model.base_url != "https://api.deepseek.com":
+                self._error(HTTPStatus.CONFLICT, "browser key entry supports only the official DeepSeek URL")
+                return
+            if set(body) != {"api_key"} or not isinstance(body.get("api_key"), str):
+                self._error(HTTPStatus.BAD_REQUEST, "body requires api_key")
+                return
+            key = body["api_key"].strip()
+            if not 1 <= len(key) <= 512 or any(char.isspace() for char in key):
+                self._error(HTTPStatus.BAD_REQUEST, "invalid API key")
+                return
+            self.server.model.api_key = key
+            self._send(HTTPStatus.OK, {"configured": True, "model": self.server.model.model})
+            return
+        if parsed.path == "/ai/disconnect":
+            if body:
+                self._error(HTTPStatus.BAD_REQUEST, "disconnect body must be empty")
+                return
+            self.server.model.api_key = ""
+            self._send(HTTPStatus.OK, {"configured": False})
+            return
         if parsed.path == "/world/tick":
             if body:
                 self._error(HTTPStatus.BAD_REQUEST, "tick body must be an empty object")
