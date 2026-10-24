@@ -1,0 +1,13 @@
+# Deployment preparation; the container image is intentionally not built or run in Sprint 0.
+services:
+  cyber-habitat:
+    build: .
+    command: ["python", "-m", "cyber_habitat", "--db", "/app/data/world.sqlite3", "demo"]
+    environment:
+      DATABASE_PATH: ${DATABASE_PATH:-/app/data/world.sqlite3}
+    volumes:
+      - habitat-data:/app/data
+    restart: unless-stopped
+
+volumes:
+  habitat-data:
