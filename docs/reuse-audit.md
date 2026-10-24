@@ -8,11 +8,13 @@ Official DSH Desktop documentation describes that app as a Windows/macOS shell t
 
 Attempts to download duplicate source during this task were interrupted or failed during transfer. They were unnecessary because the existing checkout was found. No source files were modified, no install/build was run, and no server was accessed. Git status could not be read through the current filesystem boundary, so whether the existing checkout has local edits is unverified. Preserve and use the existing checkout in place; do not copy the large repository into Cyber Habitat's `vendor/` directory.
 
+Sprint 2 validation used the existing checkout without editing it: the local bundle was linked into a disposable `DSH_HOME` under Cyber Habitat `work/`, config composition listed the bundle, and the DSH web process reached its local startup URL without plugin schema/load errors. The process was stopped after startup. An actual LLM tool invocation was not attempted because no model account was configured in this isolated profile.
+
 This is a bounded local check, not proof that no DSH files exist elsewhere on the machine. No files were installed, changed, or removed outside the new project. No credentials, private keys, or server configuration were read.
 
 ## Reuse decision
 
 - Use Python's `sqlite3`, `dataclasses`, `enum`, and `random` from the standard library.
 - Provide `RuntimePort` and a deterministic `MockRuntime` now.
-- Defer a concrete DSH adapter until the existing source checkout's bundle/profile plugin contract has been reviewed for the intended integration. Prefer a separate DSH plugin/UI that talks to a Cyber Habitat service; do not model a made-up DSH resident-action API. Desktop plugins extend Harness UI/workflows; they do not make the desktop shell a headless simulation engine.
+- Use the separate bundle under `integrations/dsh-plugin/` to expose query/action tools in DSH conversations. Keep world state and action policy in Cyber Habitat; do not model a made-up DSH resident-action API. Desktop plugins extend Harness UI/workflows; they do not make the desktop shell a headless simulation engine.
 - Revisit existing open-source components after the DSH identity is confirmed; avoid pulling packages into the first offline loop.

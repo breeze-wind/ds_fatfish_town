@@ -8,7 +8,7 @@ The world needs a central decision point that can eventually consult AI, constra
 
 ## Decision
 
-Use a Python standard-library domain core. A `Resident` submits an `Action` to `WorldDirector`; the director applies hard rules, chooses optional seeded random events, asks a `RuntimePort` to apply an allowed effect, and records outcomes with `EventStore`. The mock runtime provides the first end-to-end loop. If DSH integration is wanted, review its actual bundle/profile plugin model and connect a DSH plugin/UI to a Cyber Habitat service; do not assume DSH implements the runtime port.
+Use a Python standard-library domain core. A `Resident` submits an `Action` to `WorldDirector`; the director applies hard rules, chooses optional seeded random events, asks a `RuntimePort` to apply an allowed effect, and records outcomes with `EventStore`. The mock runtime provides the first end-to-end loop. DSH integration is a separate bundle whose tools call the local HTTP service; DSH does not implement the simulation runtime port.
 
 AI integration, when added, returns proposals to the director. It cannot mutate residents or write around policy checks. Randomness is injected as a seedable generator so tests and reproductions are reliable.
 
@@ -16,6 +16,6 @@ AI integration, when added, returns proposals to the director. It cannot mutate 
 
 - Sprint 0 runs offline on Windows and does not need Docker/WSL.
 - Simulation rules and persistence are testable without a real DSH runtime.
-- DSH plugin communication, identity mapping, and lifecycle semantics remain open until the intended UI/service flow is designed against the local source checkout.
+- The DSH bundle installs and loads in an isolated local profile. Model-driven calls, identity mapping, and dedicated dashboard UI remain later work.
 - SQLite is suitable for a single-process prototype, not a claim of multi-writer production readiness.
 - Compose and Dockerfile are preparation artifacts only; this sprint does not build or deploy them.

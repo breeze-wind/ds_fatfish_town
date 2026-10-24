@@ -27,7 +27,7 @@ python -m unittest discover -s tests -v
 
 The demo creates a resident, accepts a harmless action, blocks a hazardous action, and emits a scheduled event. Re-running with the same seed makes random event selection reproducible. The database is local and can be removed to reset the demo world.
 
-## Current status: Sprint 1 local service complete; container validation pending
+## Current status: Sprint 1 complete; Sprint 2 DSH tool bundle implemented
 
 - Resident identity, needs, and a small action vocabulary.
 - World Director as the single policy and event-scheduling point.
@@ -36,9 +36,12 @@ The demo creates a resident, accepts a harmless action, blocks a hazardous actio
 - DSH integration seam documented; no fictional DSH runtime API is assumed.
 - Local HTTP service with health/readiness, resident create/read, action submission, and event query routes.
 - Resident state and state-changing action events persist in SQLite; the service reloads resident state after restart.
+- External DSH bundle provides resident listing, event queries, and action submission through the conversation tool UI.
 - Docker Compose and Dockerfile prepared for later validation. They have not been built or run.
 
-The standard-library unit and HTTP integration suite currently passes all 8 tests, including service restart recovery and blocked-action behavior. Docker is unavailable in the current shell, so the container configuration remains unverified.
+The standard-library unit and HTTP integration suite passes all 8 tests, including service restart recovery and blocked-action behavior. The DSH HTTP client has 4 passing Node tests for local URL enforcement and request/response handling. Docker is unavailable in the current shell, so the container configuration remains unverified.
+
+The DSH bundle was installed into a disposable `DSH_HOME` under `work/`; DSH's config dump included the bundle, and its web process started without plugin load errors. A model-driven tool call was not exercised because that would require configuring an LLM account in the isolated profile.
 
 The service listens on loopback by default. The Compose mapping also binds only to host loopback. There is no authentication yet; keep it local and do not expose the service to a LAN or the internet.
 
@@ -54,7 +57,7 @@ Work proceeds locally on Windows, under Git, with the existing DSH source checko
 |---|---|---|
 | Sprint 0 — simulation core | Resident model, World Director rules and seeded events, SQLite event log, mock runtime, CLI demo | Unit tests pass; demo records resident creation, allowed action, random event, and blocked harmful action |
 | Sprint 1 — usable local service | Resident persistence, loopback HTTP API, action and event queries, input validation, health/readiness, SQLite schema version | 8 unit/integration tests pass, including restart recovery; Compose still needs validation |
-| Sprint 2 — DSH desktop plugin | Implement a separate installable DSH bundle/profile plugin using the real plugin contract in `E:\deepseek-harness`; have its UI call the local Cyber Habitat service | Plugin installs in a test DSH profile; displays world/resident state and submits an action; service policy is still authoritative; DSH source tree remains unchanged |
+| Sprint 2 — DSH desktop plugin | Separate installable DSH bundle/profile plugin using the real plugin contract in `E:\deepseek-harness`; its tools call the local Cyber Habitat service | Bundle install, config composition, and web startup verified in an isolated profile; actual model-driven tool call and returned state still need a configured model |
 | Sprint 3 — richer simulation and AI proposals | Multiple residents, needs/relationships, event scheduling controls, optional AI action/event proposals with deterministic validation and audit records | Seeded scenarios reproduce; invalid or harmful AI proposals are rejected and logged; AI cannot write state directly |
 | Sprint 4 — deployment readiness | Container build, persistent storage, health checks, backup/restore procedure, secrets and network configuration review | Compose build and local container acceptance pass; restore is demonstrated; deployment checklist is reviewed before any server action |
 
@@ -73,5 +76,6 @@ Events are stored in the selected local SQLite file. The service accepts loopbac
 - `src/cyber_habitat/`: domain model, director, event store, mock runtime, CLI.
 - `tests/`: standard-library unit and loop tests.
 - `docs/`: architecture decision, reuse audit, and core interface contract.
+- `integrations/dsh-plugin/`: external DSH bundle for resident/event queries and action submission.
 - `compose.yaml` and `Dockerfile`: deployment preparation only; not yet validated in Docker.
 - Git: local repository on `main`; use small commits at completed milestones. No remote is configured.
