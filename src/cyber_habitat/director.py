@@ -15,7 +15,7 @@ class WorldDirector:
         self.store = store
         self.rng = random.Random(seed)
         self.random_event_chance = random_event_chance
-        self.residents: dict[str, Resident] = {}
+        self.residents: dict[str, Resident] = {resident.id: resident for resident in store.list_residents()}
         self._random_events = (
             ("world.discovery", "A quiet corner of the habitat reveals a curious artifact."),
             ("world.weather", "A gentle aurora passes over the habitat."),
@@ -25,8 +25,9 @@ class WorldDirector:
     def add_resident(self, resident: Resident) -> WorldEvent:
         if resident.id in self.residents:
             raise ValueError(f"resident already exists: {resident.id}")
+        event = self.store.create_resident(resident)
         self.residents[resident.id] = resident
-        return self.store.append("resident.created", resident.id, {"name": resident.name})
+        return event
 
     def submit(self, resident_id: str, action: Action) -> Decision:
         resident = self.residents.get(resident_id)
@@ -37,16 +38,25 @@ class WorldDirector:
         if not isinstance(action.kind, ActionKind):
             raise ValueError("unknown action kind")
         if action.kind is ActionKind.ATTACK:
+            payload: dict[str, object] = {
+                "action": action.kind.value,
+                "reason": "harmful actions are disabled",
+            }
+            if action.detail:
+                payload["detail"] = action.detail
             event = self.store.append("action.blocked", resident_id,
-                                      {"action": action.kind.value, "reason": "harmful actions are disabled"})
+                                      payload)
             return Decision(False, "harmful actions are disabled", (event,))
 
         updated = self.runtime.apply(resident, action)
-        self.residents[resident_id] = updated
-        events = [self.store.append("action.applied", resident_id, {
+        action_payload = {
             "action": action.kind.value,
             "state": {"energy": updated.energy, "safety": updated.safety, "growth": updated.growth},
-        })]
+        }
+        if action.detail:
+            action_payload["detail"] = action.detail
+        events = [self.store.update_resident_and_append(updated, "action.applied", action_payload)]
+        self.residents[resident_id] = updated
         if self.rng.random() < self.random_event_chance:
             event_type, description = self.rng.choice(self._random_events)
             events.append(self.store.append(event_type, "world", {"description": description}))

@@ -9,20 +9,42 @@ Requires Python 3.11+; the core uses only the standard library.
 ```powershell
 cd work/cyber-habitat
 $env:PYTHONPATH = "src"
-python -m cyber_habitat --db data/world.sqlite3 --seed 7 demo
+python -m cyber_habitat --db data/world.sqlite3 serve
+# In another terminal:
+Invoke-RestMethod http://127.0.0.1:8765/healthz
+Invoke-RestMethod -Method Post -Uri http://127.0.0.1:8765/residents -ContentType 'application/json' -Body '{"id":"mori","name":"Mori"}'
+Invoke-RestMethod -Method Post -Uri http://127.0.0.1:8765/residents/mori/actions -ContentType 'application/json' -Body '{"kind":"learn"}'
+Invoke-RestMethod http://127.0.0.1:8765/residents
+Invoke-RestMethod http://127.0.0.1:8765/events
+```
+
+Run the demo and unit tests with:
+
+```powershell
+python -m cyber_habitat --db data/demo.sqlite3 --seed 7 demo
 python -m unittest discover -s tests -v
 ```
 
 The demo creates a resident, accepts a harmless action, blocks a hazardous action, and emits a scheduled event. Re-running with the same seed makes random event selection reproducible. The database is local and can be removed to reset the demo world.
 
-## Current status: Sprint 0 complete
+## Current status: Sprint 1 local service complete; container validation pending
 
 - Resident identity, needs, and a small action vocabulary.
 - World Director as the single policy and event-scheduling point.
 - SQLite append-only event records.
 - Mock runtime for repeatable local runs.
 - DSH integration seam documented; no fictional DSH runtime API is assumed.
+- Local HTTP service with health/readiness, resident create/read, action submission, and event query routes.
+- Resident state and state-changing action events persist in SQLite; the service reloads resident state after restart.
 - Docker Compose and Dockerfile prepared for later validation. They have not been built or run.
+
+The standard-library unit and HTTP integration suite currently passes all 8 tests, including service restart recovery and blocked-action behavior. Docker is unavailable in the current shell, so the container configuration remains unverified.
+
+The service listens on loopback by default. The Compose mapping also binds only to host loopback. There is no authentication yet; keep it local and do not expose the service to a LAN or the internet.
+
+## Local API
+
+See [service API contract](docs/service-api.md) for routes, request fields, limits, and response codes. Every action passes through World Director rules. `attack` is accepted as a known action kind so the Director can record and deny it; unknown kinds are rejected before dispatch.
 
 ## Development plan
 
@@ -31,7 +53,7 @@ Work proceeds locally on Windows, under Git, with the existing DSH source checko
 | Phase | Work | Acceptance |
 |---|---|---|
 | Sprint 0 — simulation core | Resident model, World Director rules and seeded events, SQLite event log, mock runtime, CLI demo | Unit tests pass; demo records resident creation, allowed action, random event, and blocked harmful action |
-| Sprint 1 — usable local service | Resident/world persistence, action and event query interfaces, input validation, service health/readiness, configuration and migration rules | Start locally, create/read a resident, submit actions, restart, and verify persisted state; unsafe actions remain blocked |
+| Sprint 1 — usable local service | Resident persistence, loopback HTTP API, action and event queries, input validation, health/readiness, SQLite schema version | 8 unit/integration tests pass, including restart recovery; Compose still needs validation |
 | Sprint 2 — DSH desktop plugin | Implement a separate installable DSH bundle/profile plugin using the real plugin contract in `E:\deepseek-harness`; have its UI call the local Cyber Habitat service | Plugin installs in a test DSH profile; displays world/resident state and submits an action; service policy is still authoritative; DSH source tree remains unchanged |
 | Sprint 3 — richer simulation and AI proposals | Multiple residents, needs/relationships, event scheduling controls, optional AI action/event proposals with deterministic validation and audit records | Seeded scenarios reproduce; invalid or harmful AI proposals are rejected and logged; AI cannot write state directly |
 | Sprint 4 — deployment readiness | Container build, persistent storage, health checks, backup/restore procedure, secrets and network configuration review | Compose build and local container acceptance pass; restore is demonstrated; deployment checklist is reviewed before any server action |
@@ -40,11 +62,11 @@ Each sprint should update tests and docs alongside behavior. Keep the determinis
 
 ## Configuration
 
-Copy `.env.example` to `.env` only when needed. The sample contains no secrets. The current CLI accepts `--db` and `--seed`; Compose reserves `DATABASE_PATH` for a later packaged runtime.
+Copy `.env.example` to `.env` only when needed. The sample contains no secrets. The CLI accepts `--db` and `--seed`; the service also reads `HABITAT_HOST`, `HABITAT_PORT`, `DATABASE_PATH`, and `WORLD_RANDOM_EVENT_CHANCE`.
 
 ## Data and safety
 
-Events are stored in the selected local SQLite file. No telemetry, network calls, credentials, or server access are used by the Sprint 0 core. Do not put secrets into world events. Back up the database before manually editing it.
+Events are stored in the selected local SQLite file. The service accepts loopback HTTP requests; it does not call external services. No credentials or server access are used. Do not put secrets into world events or action details. Back up the database before manually editing it.
 
 ## Layout
 

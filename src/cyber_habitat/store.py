@@ -3,7 +3,9 @@ import sqlite3
 from datetime import datetime, timezone
 from pathlib import Path
 
-from .domain import WorldEvent
+from .domain import Resident, WorldEvent
+
+SCHEMA_VERSION = 1
 
 
 class SQLiteEventStore:
@@ -11,7 +13,9 @@ class SQLiteEventStore:
         self.path = str(path)
         if self.path != ":memory:":
             Path(self.path).parent.mkdir(parents=True, exist_ok=True)
-        self._db = sqlite3.connect(self.path)
+        # The HTTP server opens the store before starting its single request thread.
+        # Calls remain serialized by the standard-library HTTPServer.
+        self._db = sqlite3.connect(self.path, check_same_thread=False)
         self._db.row_factory = sqlite3.Row
         self._db.execute("PRAGMA foreign_keys = ON")
         self._db.execute("""CREATE TABLE IF NOT EXISTS world_events (
@@ -21,7 +25,28 @@ class SQLiteEventStore:
             subject TEXT NOT NULL,
             payload_json TEXT NOT NULL
         )""")
+        self._migrate()
         self._db.commit()
+
+    def _migrate(self) -> None:
+        version = self._db.execute("PRAGMA user_version").fetchone()[0]
+        if version > SCHEMA_VERSION:
+            raise RuntimeError(f"database schema {version} is newer than supported {SCHEMA_VERSION}")
+        if version < 1:
+            self._db.execute("BEGIN EXCLUSIVE")
+            try:
+                self._db.execute("""CREATE TABLE residents (
+                    id TEXT PRIMARY KEY,
+                    name TEXT NOT NULL,
+                    energy INTEGER NOT NULL CHECK (energy BETWEEN 0 AND 100),
+                    safety INTEGER NOT NULL CHECK (safety BETWEEN 0 AND 100),
+                    growth INTEGER NOT NULL CHECK (growth BETWEEN 0 AND 100)
+                )""")
+                self._db.execute("PRAGMA user_version = 1")
+                self._db.commit()
+            except Exception:
+                self._db.rollback()
+                raise
 
     def append(self, event_type: str, subject: str, payload: dict[str, object]) -> WorldEvent:
         occurred_at = datetime.now(timezone.utc).isoformat()
@@ -33,10 +58,74 @@ class SQLiteEventStore:
         self._db.commit()
         return WorldEvent(cursor.lastrowid, occurred_at, event_type, subject, payload)
 
-    def list_events(self) -> list[WorldEvent]:
+    @staticmethod
+    def _resident_values(resident: Resident) -> tuple[object, ...]:
+        return (resident.id, resident.name, resident.energy, resident.safety, resident.growth)
+
+    def create_resident(self, resident: Resident) -> WorldEvent:
+        occurred_at = datetime.now(timezone.utc).isoformat()
+        payload = {"name": resident.name}
+        encoded = json.dumps(payload, ensure_ascii=False, sort_keys=True)
+        try:
+            self._db.execute("BEGIN IMMEDIATE")
+            self._db.execute("INSERT INTO residents (id, name, energy, safety, growth) VALUES (?, ?, ?, ?, ?)",
+                             self._resident_values(resident))
+            cursor = self._db.execute(
+                "INSERT INTO world_events (occurred_at, event_type, subject, payload_json) VALUES (?, ?, ?, ?)",
+                (occurred_at, "resident.created", resident.id, encoded),
+            )
+            self._db.commit()
+        except Exception:
+            self._db.rollback()
+            raise
+        return WorldEvent(cursor.lastrowid, occurred_at, "resident.created", resident.id, payload)
+
+    def update_resident_and_append(self, resident: Resident, event_type: str,
+                                   payload: dict[str, object]) -> WorldEvent:
+        occurred_at = datetime.now(timezone.utc).isoformat()
+        encoded = json.dumps(payload, ensure_ascii=False, sort_keys=True)
+        try:
+            self._db.execute("BEGIN IMMEDIATE")
+            cursor = self._db.execute(
+                "UPDATE residents SET name = ?, energy = ?, safety = ?, growth = ? WHERE id = ?",
+                (resident.name, resident.energy, resident.safety, resident.growth, resident.id),
+            )
+            if cursor.rowcount != 1:
+                raise KeyError(f"unknown resident: {resident.id}")
+            cursor = self._db.execute(
+                "INSERT INTO world_events (occurred_at, event_type, subject, payload_json) VALUES (?, ?, ?, ?)",
+                (occurred_at, event_type, resident.id, encoded),
+            )
+            self._db.commit()
+        except Exception:
+            self._db.rollback()
+            raise
+        return WorldEvent(cursor.lastrowid, occurred_at, event_type, resident.id, payload)
+
+    def get_resident(self, resident_id: str) -> Resident | None:
+        row = self._db.execute(
+            "SELECT id, name, energy, safety, growth FROM residents WHERE id = ?", (resident_id,)
+        ).fetchone()
+        return self._resident_from_row(row) if row else None
+
+    def list_residents(self) -> list[Resident]:
         rows = self._db.execute(
-            "SELECT id, occurred_at, event_type, subject, payload_json FROM world_events ORDER BY id"
+            "SELECT id, name, energy, safety, growth FROM residents ORDER BY id"
         ).fetchall()
+        return [self._resident_from_row(row) for row in rows]
+
+    @staticmethod
+    def _resident_from_row(row: sqlite3.Row) -> Resident:
+        return Resident(row["id"], row["name"], row["energy"], row["safety"], row["growth"])
+
+    def list_events(self, limit: int = 100) -> list[WorldEvent]:
+        if not 1 <= limit <= 500:
+            raise ValueError("event limit must be from 1 to 500")
+        rows = self._db.execute(
+            "SELECT id, occurred_at, event_type, subject, payload_json FROM world_events ORDER BY id DESC LIMIT ?",
+            (limit,),
+        ).fetchall()
+        rows.reverse()
         return [WorldEvent(row["id"], row["occurred_at"], row["event_type"], row["subject"],
                            json.loads(row["payload_json"])) for row in rows]
 

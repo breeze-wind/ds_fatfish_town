@@ -2,11 +2,14 @@
 services:
   cyber-habitat:
     build: .
-    command: ["python", "-m", "cyber_habitat", "--db", "/app/data/world.sqlite3", "demo"]
+    command: ["python", "-m", "cyber_habitat", "--db", "${DATABASE_PATH:-/app/data/world.sqlite3}", "serve", "--host", "0.0.0.0", "--port", "8765"]
     environment:
       DATABASE_PATH: ${DATABASE_PATH:-/app/data/world.sqlite3}
+      WORLD_RANDOM_EVENT_CHANCE: ${WORLD_RANDOM_EVENT_CHANCE:-0.15}
     volumes:
       - habitat-data:/app/data
+    ports:
+      - "127.0.0.1:8765:8765"
     restart: unless-stopped
 
 volumes:

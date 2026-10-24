@@ -1,6 +1,6 @@
 from typing import Protocol
 
-from .domain import Action, Resident
+from .domain import Action, Resident, WorldEvent
 
 
 class RuntimePort(Protocol):
@@ -8,4 +8,8 @@ class RuntimePort(Protocol):
 
 
 class EventStorePort(Protocol):
-    def append(self, event_type: str, subject: str, payload: dict[str, object]): ...
+    def append(self, event_type: str, subject: str, payload: dict[str, object]) -> WorldEvent: ...
+    def create_resident(self, resident: Resident) -> WorldEvent: ...
+    def update_resident_and_append(self, resident: Resident, event_type: str,
+                                   payload: dict[str, object]) -> WorldEvent: ...
+    def list_residents(self) -> list[Resident]: ...
