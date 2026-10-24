@@ -103,6 +103,19 @@ class ServiceTests(unittest.TestCase):
             page = response.read().decode("utf-8")
             self.assertIn("让角色进场", page)
             self.assertIn("Mock", page)
+            self.assertIn("推进一天", page)
+
+    def test_tick_requires_resident_and_persists_result(self):
+        self.assertEqual(self.request("POST", "/world/tick", {})[0], 409)
+        self.request("POST", "/residents", {"id": "mori", "name": "Mori"})
+        self.assertEqual(self.request("POST", "/world/tick", {"extra": 1})[0], 400)
+        status, result = self.request("POST", "/world/tick", {})
+        self.assertEqual(status, 200)
+        self.assertEqual(result["residents"][0]["growth"], 32)
+        self.assertEqual(result["events"][-1]["type"], "world.tick")
+        self._stop_server()
+        self._start_server()
+        self.assertEqual(self.request("GET", "/residents/mori")[1]["resident"]["growth"], 32)
 
     def test_legacy_event_database_migrates_in_place(self):
         self._stop_server()

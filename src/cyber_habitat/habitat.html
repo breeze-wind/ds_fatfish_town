@@ -15,13 +15,14 @@
   li { margin: 8px 0 } #message { min-height: 24px; color: #93c5fd }
 </style>
 <h1>Cyber Habitat</h1>
-<p class="muted">本地世界预览 · 当前角色动作由 Mock 规则驱动，尚未接入自主 AI 对话。</p>
-<section><div class="row"><input id="name" value="Mori" maxlength="80" aria-label="角色名字"><button id="create">让角色进场</button><button id="refresh">刷新世界</button></div><p id="message" role="status"></p></section>
+<p class="muted">本地世界预览 · “推进一天”由 Mock 规则自动选择动作，尚未接入自主 AI 对话。</p>
+<section><div class="row"><input id="name" value="Mori" maxlength="80" aria-label="角色名字"><button id="create">让角色进场</button><button id="tick">推进一天</button><button id="refresh">刷新世界</button></div><p id="message" role="status"></p></section>
 <section><h2>居民</h2><div id="residents" class="cards"></div></section>
 <section><h2>最近事件</h2><ol id="events"></ol></section>
 <script>
 const $ = id => document.getElementById(id);
-const labels = {'resident.created':'进入世界','action.applied':'完成动作','action.blocked':'动作被阻止','world.discovery':'发现','world.weather':'天气','world.visitor':'访客'};
+const labels = {'resident.created':'进入世界','action.applied':'完成动作','action.blocked':'动作被阻止','world.discovery':'发现','world.weather':'天气','world.visitor':'访客','world.tick':'一天结束'};
+const actions = {rest:'休息',learn:'学习',socialize:'社交',attack:'攻击'};
 async function api(path, options) {
   const response = await fetch(path, options);
   const data = await response.json();
@@ -48,7 +49,7 @@ async function refresh() {
   const list = $('events'); list.replaceChildren();
   for (const event of history.events.reverse()) {
     const item = document.createElement('li');
-    const detail = event.payload.description || event.payload.action || event.payload.name || '';
+    const detail = event.payload.description || actions[event.payload.action] || event.payload.name || '';
     item.textContent = `${labels[event.type] || event.type} · ${event.subject}${detail ? ' · ' + detail : ''}`;
     list.append(item);
   }
@@ -63,6 +64,12 @@ $('create').onclick = async () => {
   if (!name) { $('message').textContent = '请输入名字'; return; }
   try { const result = await api('/residents', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name})}); $('message').textContent = `${result.resident.name} 已进场`; await refresh(); }
   catch (error) { $('message').textContent = error.message; }
+};
+$('tick').onclick = async () => {
+  $('tick').disabled = true;
+  try { const result = await api('/world/tick', {method:'POST',headers:{'Content-Type':'application/json'},body:'{}'}); $('message').textContent = `${result.residents.length} 位居民完成了这一天`; await refresh(); }
+  catch (error) { $('message').textContent = error.message; }
+  finally { $('tick').disabled = false; }
 };
 $('refresh').onclick = () => refresh().catch(error => $('message').textContent = error.message);
 refresh().catch(error => $('message').textContent = error.message);

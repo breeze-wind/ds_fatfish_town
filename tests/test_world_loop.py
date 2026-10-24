@@ -53,6 +53,15 @@ class WorldLoopTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             Resident("bad", "Bad", energy=101)
 
+    def test_tick_chooses_actions_and_records_turn(self):
+        self.director.add_resident(Resident("r2", "Ari", energy=35, growth=70))
+        events = self.director.tick()
+        self.assertEqual(self.director.residents["r1"].growth, 32)
+        self.assertEqual(self.director.residents["r2"].energy, 50)
+        self.assertEqual([event.event_type for event in events],
+                         ["action.applied", "action.applied", "world.tick"])
+        self.assertEqual(events[-1].payload["residents"], 2)
+
 
 if __name__ == "__main__":
     unittest.main()

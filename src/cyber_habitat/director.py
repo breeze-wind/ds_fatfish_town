@@ -29,6 +29,22 @@ class WorldDirector:
         self.residents[resident.id] = resident
         return event
 
+    def tick(self) -> tuple[WorldEvent, ...]:
+        """Advance each resident once using a small, deterministic mock policy."""
+        events: list[WorldEvent] = []
+        for resident_id in sorted(self.residents):
+            resident = self.residents[resident_id]
+            if resident.energy <= 40:
+                kind = ActionKind.REST
+            elif resident.growth < 60:
+                kind = ActionKind.LEARN
+            else:
+                kind = ActionKind.SOCIALIZE
+            decision = self.submit(resident_id, Action(resident_id, kind, "mock autonomous turn"))
+            events.extend(decision.events)
+        events.append(self.store.append("world.tick", "world", {"residents": len(self.residents)}))
+        return tuple(events)
+
     def submit(self, resident_id: str, action: Action) -> Decision:
         resident = self.residents.get(resident_id)
         if resident is None:

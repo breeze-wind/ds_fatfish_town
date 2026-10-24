@@ -181,6 +181,19 @@ class HabitatRequestHandler(BaseHTTPRequestHandler):
         body = self._read_json()
         if body is None:
             return
+        if parsed.path == "/world/tick":
+            if body:
+                self._error(HTTPStatus.BAD_REQUEST, "tick body must be an empty object")
+                return
+            if not self.server.director.residents:
+                self._error(HTTPStatus.CONFLICT, "create a resident before advancing the world")
+                return
+            events = self.server.director.tick()
+            self._send(HTTPStatus.OK, {
+                "residents": [_resident_json(resident) for resident in self.server.director.residents.values()],
+                "events": [_event_json(event) for event in events],
+            })
+            return
         if parsed.path == "/residents":
             if set(body) - {"id", "name"} or not isinstance(body.get("name"), str):
                 self._error(HTTPStatus.BAD_REQUEST, "body requires name and accepts optional id")
