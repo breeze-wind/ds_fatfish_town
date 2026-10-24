@@ -37,12 +37,12 @@ The demo creates a resident, accepts a harmless action, blocks a hazardous actio
 - DSH integration seam documented; no fictional DSH runtime API is assumed.
 - Local HTTP service with health/readiness, resident create/read, action submission, and event query routes.
 - Local browser page for resident creation, state, actions, recent events, and manual world turns. Rule turns choose actions through a fixed Mock policy; AI turns and dialogue require a configured model.
-- First AI resident path: persona and current state prompt, persistent recent conversation, OpenAI-compatible model connection, AI action proposals validated by World Director, and clear unconfigured status in the browser. A real model has not yet been connected in this environment.
+- First AI resident path: persona and current state prompt, persistent recent conversation, direct DeepSeek connection, AI action proposals validated by World Director, and clear connection status in the browser. A real DeepSeek dialogue and AI turn have been verified locally; see [acceptance record](docs/first-ai-resident-acceptance.md).
 - Resident state and state-changing action events persist in SQLite; the service reloads resident state after restart.
 - External DSH bundle provides resident listing, event queries, and action submission through the conversation tool UI.
 - Docker Compose and Dockerfile prepared for later validation. They have not been built or run.
 
-The standard-library unit and HTTP integration suite covers conversation persistence, a local fake-model HTTP exchange, AI action blocking, and in-memory key handling. The DSH HTTP client has 4 Node tests. Docker is unavailable in the current shell, so the container configuration remains unverified.
+The standard-library unit and HTTP integration suite passed 18 tests covering conversation persistence, a local fake-model HTTP exchange, AI action blocking, and in-memory key handling. The DSH HTTP client passed 4 Node tests. Docker is unavailable in the current shell, so the container configuration remains unverified.
 
 The DSH bundle was installed into a disposable `DSH_HOME` under `work/`; DSH's config dump included the bundle, and its web process started without plugin load errors. A model-driven tool call was not exercised because that would require configuring an LLM account in the isolated profile.
 
@@ -52,7 +52,7 @@ The service listens on loopback by default. The Compose mapping also binds only 
 
 Start the service and open its local browser page. DeepSeek's current [official API guide](https://api-docs.deepseek.com/guides/search_fetch) lists `https://api.deepseek.com` and `deepseek-flash`; these are the service defaults. Enter your DeepSeek API key in the page's password field and click **Connect DeepSeek**. The key remains only in server memory and is lost at restart. The status endpoint and browser never return the key. Clicking **Send** or **AI Advance Day** sends the message, recent conversation, and relevant resident state to DeepSeek. No model call occurs when the key is absent.
 
-You may instead set `DEEPSEEK_API_KEY` or `HABITAT_AI_API_KEY` in the service process environment. Do not paste the key into chat or commit it. A real DeepSeek conversation has not yet been exercised on this machine; automated tests use a fake local model and mocked requests.
+You may instead set `DEEPSEEK_API_KEY` or `HABITAT_AI_API_KEY` in the service process environment. Do not paste the key into chat or commit it. Automated tests use a fake local model and mocked requests; a separate manual acceptance check used the real DeepSeek API.
 
 ### Alternative local model
 
