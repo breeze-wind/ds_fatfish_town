@@ -28,7 +28,7 @@ python -m unittest discover -s tests -v
 
 The demo creates a resident, accepts a harmless action, blocks a hazardous action, and emits a scheduled event. Re-running with the same seed makes random event selection reproducible. The database is local and can be removed to reset the demo world.
 
-## Current status: Sprint 1 complete; Sprint 2 DSH tool bundle implemented
+## Current status: first AI resident path implemented locally
 
 - Resident identity, needs, and a small action vocabulary.
 - World Director as the single policy and event-scheduling point.
@@ -36,16 +36,30 @@ The demo creates a resident, accepts a harmless action, blocks a hazardous actio
 - Mock runtime for repeatable local runs.
 - DSH integration seam documented; no fictional DSH runtime API is assumed.
 - Local HTTP service with health/readiness, resident create/read, action submission, and event query routes.
-- Local browser page for resident creation, state, actions, recent events, and manual world turns. Each turn chooses an action for every resident using a fixed Mock policy; autonomous AI dialogue is not implemented yet.
+- Local browser page for resident creation, state, actions, recent events, and manual world turns. Rule turns choose actions through a fixed Mock policy; AI turns and dialogue require a configured model.
+- First AI resident path: persona and current state prompt, persistent recent conversation, OpenAI-compatible model connection, AI action proposals validated by World Director, and clear unconfigured status in the browser. A real model has not yet been connected in this environment.
 - Resident state and state-changing action events persist in SQLite; the service reloads resident state after restart.
 - External DSH bundle provides resident listing, event queries, and action submission through the conversation tool UI.
 - Docker Compose and Dockerfile prepared for later validation. They have not been built or run.
 
-The standard-library unit and HTTP integration suite passes all 8 tests, including service restart recovery and blocked-action behavior. The DSH HTTP client has 4 passing Node tests for local URL enforcement and request/response handling. Docker is unavailable in the current shell, so the container configuration remains unverified.
+The standard-library unit and HTTP integration suite passes all 16 tests, including conversation persistence, a local fake-model HTTP exchange, and AI action blocking. The DSH HTTP client has 4 passing Node tests. Docker is unavailable in the current shell, so the container configuration remains unverified.
 
 The DSH bundle was installed into a disposable `DSH_HOME` under `work/`; DSH's config dump included the bundle, and its web process started without plugin load errors. A model-driven tool call was not exercised because that would require configuring an LLM account in the isolated profile.
 
 The service listens on loopback by default. The Compose mapping also binds only to host loopback. There is no authentication yet; keep it local and do not expose the service to a LAN or the internet.
+
+### Connect a model to Mori
+
+Set these variables in the shell that starts `serve` (the URL is an example of a local OpenAI-compatible server; no such server is installed or running here):
+
+```powershell
+$env:HABITAT_AI_BASE_URL = 'http://127.0.0.1:11434/v1'
+$env:HABITAT_AI_MODEL = 'your-installed-model'
+# For a provider requiring a key, set HABITAT_AI_API_KEY in the shell, never in a tracked file.
+python -m cyber_habitat --db data/world.sqlite3 serve
+```
+
+For a remote provider, use an HTTPS base URL and a process environment API key. Refresh the browser; it will show whether the model is configured. The browser can then speak with a resident and ask the AI to propose a day's action. The model call from this machine has been exercised only against a local fake-model test server; a real model conversation is still unverified. The existing DSH desktop profile is not automatically shared with this standalone service.
 
 ## Local API
 
@@ -60,7 +74,7 @@ Work proceeds locally on Windows, under Git, with the existing DSH source checko
 | Sprint 0 — simulation core | Resident model, World Director rules and seeded events, SQLite event log, mock runtime, CLI demo | Unit tests pass; demo records resident creation, allowed action, random event, and blocked harmful action |
 | Sprint 1 — usable local service | Resident persistence, loopback HTTP API, action and event queries, input validation, health/readiness, SQLite schema version | 8 unit/integration tests pass, including restart recovery; Compose still needs validation |
 | Sprint 2 — DSH desktop plugin | Separate installable DSH bundle/profile plugin using the real plugin contract in `E:\deepseek-harness`; its tools call the local Cyber Habitat service | Bundle install, config composition, and web startup verified in an isolated profile; actual model-driven tool call and returned state still need a configured model |
-| Sprint 3 — richer simulation and AI proposals | Multiple residents, needs/relationships, event scheduling controls, optional AI action/event proposals with deterministic validation and audit records | Seeded scenarios reproduce; invalid or harmful AI proposals are rejected and logged; AI cannot write state directly |
+| Sprint 3 — first AI resident, then richer simulation | Persona, persistent conversation, model proposals with deterministic validation and audit records; later relationships and event controls | The first AI path is implemented and fake-model tested; real model conversation remains to be verified once a model endpoint is configured |
 | Sprint 4 — deployment readiness | Container build, persistent storage, health checks, backup/restore procedure, secrets and network configuration review | Compose build and local container acceptance pass; restore is demonstrated; deployment checklist is reviewed before any server action |
 
 Each sprint should update tests and docs alongside behavior. Keep the deterministic mock runtime available for offline development. Treat the existing DSH checkout at `E:\deepseek-harness` (commit `d347e703`) as read-only reference until an integration package is developed separately.

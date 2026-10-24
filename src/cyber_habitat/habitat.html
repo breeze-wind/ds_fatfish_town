@@ -13,15 +13,18 @@
   article { background: #1f2937; border: 1px solid #374151; border-radius: 12px; padding: 16px }
   article h3 { margin-top: 0 } .stat { margin: 7px 0 } .actions button { margin: 5px 5px 0 0; padding: 7px 10px }
   li { margin: 8px 0 } #message { min-height: 24px; color: #93c5fd }
+  #chatLog { min-height: 80px; max-height: 280px; overflow: auto; background: #1f2937; border-radius: 8px; padding: 12px }
+  #chatLog p { margin: 7px 0 } #chatMessage { flex: 1; min-width: 220px }
 </style>
 <h1>Cyber Habitat</h1>
-<p class="muted">本地世界预览 · “推进一天”由 Mock 规则自动选择动作，尚未接入自主 AI 对话。</p>
-<section><div class="row"><input id="name" value="Mori" maxlength="80" aria-label="角色名字"><button id="create">让角色进场</button><button id="tick">推进一天</button><button id="refresh">刷新世界</button></div><p id="message" role="status"></p></section>
+<p class="muted">本地世界预览 · <span id="aiStatus">正在检查 AI 连接…</span></p>
+<section><div class="row"><input id="name" value="Mori" maxlength="80" aria-label="角色名字"><button id="create">让角色进场</button><button id="tick">规则推进一天</button><button id="aiTick" disabled>AI 推进一天</button><button id="refresh">刷新世界</button></div><p id="message" role="status"></p></section>
 <section><h2>居民</h2><div id="residents" class="cards"></div></section>
+<section><h2>和居民说话</h2><div class="row"><select id="chatResident" aria-label="选择居民"></select><input id="chatMessage" maxlength="1000" placeholder="对居民说点什么"><button id="send" disabled>发送</button></div><div id="chatLog"></div></section>
 <section><h2>最近事件</h2><ol id="events"></ol></section>
 <script>
 const $ = id => document.getElementById(id);
-const labels = {'resident.created':'进入世界','action.applied':'完成动作','action.blocked':'动作被阻止','world.discovery':'发现','world.weather':'天气','world.visitor':'访客','world.tick':'一天结束'};
+const labels = {'resident.created':'进入世界','action.applied':'完成动作','action.blocked':'动作被阻止','world.discovery':'发现','world.weather':'天气','world.visitor':'访客','world.tick':'规则回合结束','world.ai_tick':'AI 回合结束','ai.proposal.rejected':'AI 提议被拒绝','resident.spoke':'说话'};
 const actions = {rest:'休息',learn:'学习',socialize:'社交',attack:'攻击'};
 async function api(path, options) {
   const response = await fetch(path, options);
@@ -31,6 +34,9 @@ async function api(path, options) {
 }
 async function refresh() {
   const [people, history] = await Promise.all([api('/residents'), api('/events?limit=30')]);
+  const selector = $('chatResident'); const selected = selector.value; selector.replaceChildren();
+  for (const resident of people.residents) { const option = document.createElement('option'); option.value = resident.id; option.textContent = resident.name; selector.append(option); }
+  if (people.residents.some(r => r.id === selected)) selector.value = selected;
   const cards = $('residents'); cards.replaceChildren();
   if (!people.residents.length) cards.textContent = '还没有居民。点击“让角色进场”。';
   for (const resident of people.residents) {
@@ -49,11 +55,20 @@ async function refresh() {
   const list = $('events'); list.replaceChildren();
   for (const event of history.events.reverse()) {
     const item = document.createElement('li');
-    const detail = event.payload.description || actions[event.payload.action] || event.payload.name || '';
+    const detail = event.payload.description || actions[event.payload.action] || event.payload.name || event.payload.message || '';
     item.textContent = `${labels[event.type] || event.type} · ${event.subject}${detail ? ' · ' + detail : ''}`;
     list.append(item);
   }
   if (!history.events.length) list.textContent = '暂无事件。';
+  await loadConversation();
+}
+async function loadConversation() {
+  const log = $('chatLog'); log.replaceChildren();
+  if (!$('chatResident').value) { log.textContent = '先让角色进场。'; return; }
+  const data = await api(`/residents/${encodeURIComponent($('chatResident').value)}/conversation`);
+  for (const entry of data.messages) { const line = document.createElement('p'); line.textContent = `${entry.role === 'user' ? '你' : '居民'}：${entry.content}`; log.append(line); }
+  if (!data.messages.length) log.textContent = '还没有对话。';
+  log.scrollTop = log.scrollHeight;
 }
 async function act(id, kind) {
   try { const result = await api(`/residents/${encodeURIComponent(id)}/actions`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({kind})}); $('message').textContent = result.decision.reason; await refresh(); }
@@ -71,6 +86,23 @@ $('tick').onclick = async () => {
   catch (error) { $('message').textContent = error.message; }
   finally { $('tick').disabled = false; }
 };
+$('aiTick').onclick = async () => {
+  $('aiTick').disabled = true;
+  try { const result = await api('/world/ai-tick', {method:'POST',headers:{'Content-Type':'application/json'},body:'{}'}); $('message').textContent = `AI 回合完成，产生 ${result.events.length} 条事件`; await refresh(); }
+  catch (error) { $('message').textContent = error.message; }
+  finally { $('aiTick').disabled = false; }
+};
+$('send').onclick = async () => {
+  const resident = $('chatResident').value; const message = $('chatMessage').value.trim();
+  if (!resident || !message) return;
+  $('send').disabled = true;
+  try { await api(`/residents/${encodeURIComponent(resident)}/conversation`, {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message})}); $('chatMessage').value = ''; await refresh(); }
+  catch (error) { $('message').textContent = error.message; }
+  finally { $('send').disabled = false; }
+};
+$('chatResident').onchange = () => loadConversation().catch(error => $('message').textContent = error.message);
+$('chatMessage').onkeydown = event => { if (event.key === 'Enter') $('send').click(); };
+api('/ai/status').then(status => { $('aiStatus').textContent = status.configured ? `AI 已连接：${status.model}` : 'AI 未连接；规则推进可用，对话和 AI 推进需配置模型'; $('aiTick').disabled = !status.configured; $('send').disabled = !status.configured; }).catch(error => $('aiStatus').textContent = error.message);
 $('refresh').onclick = () => refresh().catch(error => $('message').textContent = error.message);
 refresh().catch(error => $('message').textContent = error.message);
 </script>

@@ -5,7 +5,7 @@ from pathlib import Path
 
 from .domain import Resident, WorldEvent
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 
 
 class SQLiteEventStore:
@@ -47,6 +47,49 @@ class SQLiteEventStore:
             except Exception:
                 self._db.rollback()
                 raise
+        if version < 2:
+            self._db.execute("BEGIN IMMEDIATE")
+            try:
+                self._db.execute("""CREATE TABLE conversation_messages (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    resident_id TEXT NOT NULL REFERENCES residents(id),
+                    role TEXT NOT NULL CHECK (role IN ('user', 'assistant')),
+                    content TEXT NOT NULL,
+                    occurred_at TEXT NOT NULL
+                )""")
+                self._db.execute("CREATE INDEX conversation_resident_id ON conversation_messages (resident_id, id)")
+                self._db.execute("PRAGMA user_version = 2")
+                self._db.commit()
+            except Exception:
+                self._db.rollback()
+                raise
+
+    def conversation(self, resident_id: str, limit: int = 12) -> list[dict[str, str]]:
+        rows = self._db.execute(
+            "SELECT role, content FROM conversation_messages WHERE resident_id = ? ORDER BY id DESC LIMIT ?",
+            (resident_id, limit),
+        ).fetchall()
+        return [{"role": row["role"], "content": row["content"]} for row in reversed(rows)]
+
+    def record_exchange(self, resident_id: str, user_text: str, answer: str) -> WorldEvent:
+        occurred_at = datetime.now(timezone.utc).isoformat()
+        payload = {"message": answer}
+        try:
+            self._db.execute("BEGIN IMMEDIATE")
+            self._db.executemany(
+                "INSERT INTO conversation_messages (resident_id, role, content, occurred_at) VALUES (?, ?, ?, ?)",
+                [(resident_id, "user", user_text, occurred_at),
+                 (resident_id, "assistant", answer, occurred_at)],
+            )
+            cursor = self._db.execute(
+                "INSERT INTO world_events (occurred_at, event_type, subject, payload_json) VALUES (?, ?, ?, ?)",
+                (occurred_at, "resident.spoke", resident_id, json.dumps(payload, ensure_ascii=False)),
+            )
+            self._db.commit()
+        except Exception:
+            self._db.rollback()
+            raise
+        return WorldEvent(cursor.lastrowid, occurred_at, "resident.spoke", resident_id, payload)
 
     def append(self, event_type: str, subject: str, payload: dict[str, object]) -> WorldEvent:
         occurred_at = datetime.now(timezone.utc).isoformat()

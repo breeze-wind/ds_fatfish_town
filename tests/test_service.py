@@ -102,8 +102,8 @@ class ServiceTests(unittest.TestCase):
             self.assertIn("text/html", response.headers["Content-Type"])
             page = response.read().decode("utf-8")
             self.assertIn("让角色进场", page)
-            self.assertIn("Mock", page)
-            self.assertIn("推进一天", page)
+            self.assertIn("AI 推进一天", page)
+            self.assertIn("chatResident", page)
 
     def test_tick_requires_resident_and_persists_result(self):
         self.assertEqual(self.request("POST", "/world/tick", {})[0], 409)
@@ -116,6 +116,52 @@ class ServiceTests(unittest.TestCase):
         self._stop_server()
         self._start_server()
         self.assertEqual(self.request("GET", "/residents/mori")[1]["resident"]["growth"], 32)
+
+    def test_ai_conversation_and_proposal_are_persisted(self):
+        class FakeModel:
+            ready = True
+            model = "fake"
+            calls = []
+
+            def complete(self, messages):
+                self.calls.append(messages)
+                return '{"kind":"learn"}' if "JSON" in messages[0]["content"] else "你好，我是 Mori。"
+
+        model = FakeModel()
+        self.server.model = model
+        self.request("POST", "/residents", {"id": "mori", "name": "Mori"})
+        status, answer = self.request("POST", "/residents/mori/conversation", {"message": "你好"})
+        self.assertEqual(status, 200)
+        self.assertEqual(answer["answer"], "你好，我是 Mori。")
+        self.assertEqual(self.request("GET", "/residents/mori/conversation")[1]["messages"], [
+            {"role": "user", "content": "你好"},
+            {"role": "assistant", "content": "你好，我是 Mori。"},
+        ])
+        self.assertIn("你好", model.calls[0][-1]["content"])
+        self.request("POST", "/residents/mori/conversation", {"message": "你还记得我吗"})
+        self.assertIn("你好", model.calls[1][-2]["content"])
+        self.assertEqual(self.request("POST", "/world/ai-tick", {})[0], 200)
+        self.assertEqual(self.request("GET", "/residents/mori")[1]["resident"]["growth"], 32)
+        self._stop_server()
+        self._start_server()
+        self.assertEqual(len(self.request("GET", "/residents/mori/conversation")[1]["messages"]), 4)
+
+    def test_ai_harmful_proposal_is_blocked(self):
+        self.server.model = type("BadModel", (), {
+            "ready": True, "model": "fake", "complete": lambda _self, _messages: '{"kind":"attack"}',
+        })()
+        self.request("POST", "/residents", {"id": "mori", "name": "Mori"})
+        status, result = self.request("POST", "/world/ai-tick", {})
+        self.assertEqual(status, 200)
+        self.assertEqual(result["residents"][0]["growth"], 20)
+        self.assertEqual(result["events"][0]["type"], "action.blocked")
+
+    def test_ai_unconfigured_fails_without_recording_conversation(self):
+        self.server.model = type("NoModel", (), {"ready": False, "model": ""})()
+        self.request("POST", "/residents", {"id": "mori", "name": "Mori"})
+        self.assertEqual(self.request("POST", "/residents/mori/conversation", {"message": "你好"})[0], 503)
+        self.assertEqual(self.request("POST", "/world/ai-tick", {})[0], 503)
+        self.assertEqual(self.request("GET", "/residents/mori/conversation")[1]["messages"], [])
 
     def test_legacy_event_database_migrates_in_place(self):
         self._stop_server()

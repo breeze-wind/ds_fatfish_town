@@ -11,6 +11,7 @@ from ipaddress import ip_address
 from urllib.parse import parse_qs, urlsplit
 
 from .director import WorldDirector
+from .ai import ModelUnavailable, OpenAICompatibleModel, conversation_prompt
 from .domain import Action, ActionKind, Resident
 from .runtime import MockRuntime
 from .store import SQLiteEventStore
@@ -46,6 +47,7 @@ class HabitatHTTPServer(HTTPServer):
         self.director = WorldDirector(
             MockRuntime(), self.store, seed=seed, random_event_chance=random_event_chance
         )
+        self.model = OpenAICompatibleModel()
         try:
             super().__init__(address, HabitatRequestHandler)
         except Exception:
@@ -138,6 +140,10 @@ class HabitatRequestHandler(BaseHTTPRequestHandler):
         if parsed.path in ("/healthz", "/readyz"):
             self._send(HTTPStatus.OK, {"status": "ok"})
             return
+        if parsed.path == "/ai/status":
+            self._send(HTTPStatus.OK, {"configured": self.server.model.ready,
+                                       "model": self.server.model.model if self.server.model.ready else None})
+            return
         if parsed.path == "/residents":
             self._send(HTTPStatus.OK, {"residents": [
                 _resident_json(resident) for resident in self.server.director.residents.values()
@@ -145,6 +151,13 @@ class HabitatRequestHandler(BaseHTTPRequestHandler):
             return
         if parsed.path.startswith("/residents/"):
             resident_id = parsed.path.removeprefix("/residents/")
+            if resident_id.endswith("/conversation"):
+                resident_id = resident_id.removesuffix("/conversation")
+                if not RESIDENT_ID.fullmatch(resident_id) or resident_id not in self.server.director.residents:
+                    self._error(HTTPStatus.NOT_FOUND, "resident not found")
+                    return
+                self._send(HTTPStatus.OK, {"messages": self.server.store.conversation(resident_id, 30)})
+                return
             if not RESIDENT_ID.fullmatch(resident_id):
                 self._error(HTTPStatus.NOT_FOUND, "resident not found")
                 return
@@ -194,6 +207,43 @@ class HabitatRequestHandler(BaseHTTPRequestHandler):
                 "events": [_event_json(event) for event in events],
             })
             return
+        if parsed.path == "/world/ai-tick":
+            if body:
+                self._error(HTTPStatus.BAD_REQUEST, "AI tick body must be an empty object")
+                return
+            if not self.server.model.ready:
+                self._error(HTTPStatus.SERVICE_UNAVAILABLE, "AI model is not configured")
+                return
+            if not self.server.director.residents:
+                self._error(HTTPStatus.CONFLICT, "create a resident before advancing the world")
+                return
+            events = []
+            for resident_id in sorted(self.server.director.residents):
+                resident = self.server.director.residents[resident_id]
+                prompt = [{"role": "system", "content":
+                           "你是 Cyber Habitat 居民。根据状态选择下一步动作。只输出一个 JSON 对象，"
+                           "格式为 {\"kind\":\"rest|learn|socialize\"}。不要输出其他内容。"},
+                          {"role": "user", "content":
+                           f"名字：{resident.name}；精力：{resident.energy}；安全：{resident.safety}；成长：{resident.growth}"}]
+                try:
+                    raw = self.server.model.complete(prompt)
+                    proposal = json.loads(raw)
+                    kind = ActionKind(proposal["kind"])
+                    if set(proposal) != {"kind"}:
+                        raise ValueError("unexpected proposal fields")
+                except ModelUnavailable as exc:
+                    self._error(HTTPStatus.BAD_GATEWAY, str(exc))
+                    return
+                except (ValueError, KeyError, TypeError):
+                    events.append(self.server.store.append("ai.proposal.rejected", resident_id,
+                                                           {"reason": "invalid action proposal"}))
+                    continue
+                decision = self.server.director.submit(resident_id, Action(resident_id, kind, "AI proposal"))
+                events.extend(decision.events)
+            events.append(self.server.store.append("world.ai_tick", "world", {"residents": len(self.server.director.residents)}))
+            self._send(HTTPStatus.OK, {"residents": [_resident_json(r) for r in self.server.director.residents.values()],
+                                       "events": [_event_json(event) for event in events]})
+            return
         if parsed.path == "/residents":
             if set(body) - {"id", "name"} or not isinstance(body.get("name"), str):
                 self._error(HTTPStatus.BAD_REQUEST, "body requires name and accepts optional id")
@@ -215,6 +265,36 @@ class HabitatRequestHandler(BaseHTTPRequestHandler):
                 "resident": _resident_json(self.server.director.residents[resident_id]),
                 "event": _event_json(event),
             })
+            return
+
+        conversation_suffix = "/conversation"
+        if parsed.path.startswith("/residents/") and parsed.path.endswith(conversation_suffix):
+            resident_id = parsed.path[len("/residents/"):-len(conversation_suffix)]
+            if not RESIDENT_ID.fullmatch(resident_id) or resident_id not in self.server.director.residents:
+                self._error(HTTPStatus.NOT_FOUND, "resident not found")
+                return
+            if set(body) != {"message"} or not isinstance(body.get("message"), str):
+                self._error(HTTPStatus.BAD_REQUEST, "body requires message")
+                return
+            message = body["message"].strip()
+            if not 1 <= len(message) <= 1000:
+                self._error(HTTPStatus.BAD_REQUEST, "message must contain 1 to 1000 characters")
+                return
+            if not self.server.model.ready:
+                self._error(HTTPStatus.SERVICE_UNAVAILABLE, "AI model is not configured")
+                return
+            resident = self.server.director.residents[resident_id]
+            prompt = conversation_prompt(resident.name,
+                                         {"energy": resident.energy, "safety": resident.safety,
+                                          "growth": resident.growth},
+                                         self.server.store.conversation(resident_id), message)
+            try:
+                answer = self.server.model.complete(prompt)
+            except ModelUnavailable as exc:
+                self._error(HTTPStatus.BAD_GATEWAY, str(exc))
+                return
+            event = self.server.store.record_exchange(resident_id, message, answer)
+            self._send(HTTPStatus.OK, {"answer": answer, "event": _event_json(event)})
             return
 
         action_prefix = "/residents/"

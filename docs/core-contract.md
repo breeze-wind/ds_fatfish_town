@@ -19,8 +19,8 @@
 
 - `RuntimePort.apply(resident, action) -> Resident`: runtime effect boundary.
 - `EventStore.append(type, subject, payload) -> WorldEvent`: durable event boundary.
-- AI, future: proposes `Action`/event candidates only. The director remains authoritative.
-- DSH, future: implements `RuntimePort` only after the actual DSH contract is verified.
+- AI model: generates resident dialogue and proposes an `ActionKind`; the director remains authoritative for state changes.
+- DSH: the current external plugin exposes tools to query and act on the local service. It does not share DSH's configured model or credentials with the standalone service.
 
 ## Sprint 0 allowed action kinds
 
