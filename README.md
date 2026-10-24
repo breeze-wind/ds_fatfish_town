@@ -10,6 +10,7 @@ Requires Python 3.11+; the core uses only the standard library.
 cd work/cyber-habitat
 $env:PYTHONPATH = "src"
 python -m cyber_habitat --db data/world.sqlite3 serve
+# Open http://127.0.0.1:8765/ in a browser to create and interact with residents.
 # In another terminal:
 Invoke-RestMethod http://127.0.0.1:8765/healthz
 Invoke-RestMethod -Method Post -Uri http://127.0.0.1:8765/residents -ContentType 'application/json' -Body '{"id":"mori","name":"Mori"}'
@@ -35,6 +36,7 @@ The demo creates a resident, accepts a harmless action, blocks a hazardous actio
 - Mock runtime for repeatable local runs.
 - DSH integration seam documented; no fictional DSH runtime API is assumed.
 - Local HTTP service with health/readiness, resident create/read, action submission, and event query routes.
+- Local browser page for resident creation, state, actions, and recent events. Actions remain Mock-driven; autonomous AI residents and dialogue are not implemented yet.
 - Resident state and state-changing action events persist in SQLite; the service reloads resident state after restart.
 - External DSH bundle provides resident listing, event queries, and action submission through the conversation tool UI.
 - Docker Compose and Dockerfile prepared for later validation. They have not been built or run.

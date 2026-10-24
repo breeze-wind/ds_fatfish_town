@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="zh-CN">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cyber Habitat · 本地世界</title>
+<style>
+  :root { color-scheme: dark; font-family: system-ui, sans-serif; background: #111827; color: #f3f4f6 }
+  body { max-width: 880px; margin: 40px auto; padding: 0 20px }
+  h1 { margin-bottom: 4px } .muted { color: #aab4c4 } .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center }
+  input, button { font: inherit; padding: 10px 14px; border-radius: 8px; border: 1px solid #53627a }
+  input { background: #1f2937; color: white } button { background: #2563eb; color: white; cursor: pointer }
+  button:disabled { opacity: .5; cursor: wait } section { margin: 28px 0 } .cards { display: grid; grid-template-columns: repeat(auto-fit,minmax(240px,1fr)); gap: 14px }
+  article { background: #1f2937; border: 1px solid #374151; border-radius: 12px; padding: 16px }
+  article h3 { margin-top: 0 } .stat { margin: 7px 0 } .actions button { margin: 5px 5px 0 0; padding: 7px 10px }
+  li { margin: 8px 0 } #message { min-height: 24px; color: #93c5fd }
+</style>
+<h1>Cyber Habitat</h1>
+<p class="muted">本地世界预览 · 当前角色动作由 Mock 规则驱动，尚未接入自主 AI 对话。</p>
+<section><div class="row"><input id="name" value="Mori" maxlength="80" aria-label="角色名字"><button id="create">让角色进场</button><button id="refresh">刷新世界</button></div><p id="message" role="status"></p></section>
+<section><h2>居民</h2><div id="residents" class="cards"></div></section>
+<section><h2>最近事件</h2><ol id="events"></ol></section>
+<script>
+const $ = id => document.getElementById(id);
+const labels = {'resident.created':'进入世界','action.applied':'完成动作','action.blocked':'动作被阻止','world.discovery':'发现','world.weather':'天气','world.visitor':'访客'};
+async function api(path, options) {
+  const response = await fetch(path, options);
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.error || `请求失败 (${response.status})`);
+  return data;
+}
+async function refresh() {
+  const [people, history] = await Promise.all([api('/residents'), api('/events?limit=30')]);
+  const cards = $('residents'); cards.replaceChildren();
+  if (!people.residents.length) cards.textContent = '还没有居民。点击“让角色进场”。';
+  for (const resident of people.residents) {
+    const card = document.createElement('article');
+    const title = document.createElement('h3'); title.textContent = resident.name; card.append(title);
+    for (const [label, key] of [['精力','energy'],['安全','safety'],['成长','growth']]) {
+      const stat = document.createElement('div'); stat.className = 'stat'; stat.textContent = `${label}：${resident[key]}`; card.append(stat);
+    }
+    const actions = document.createElement('div'); actions.className = 'actions';
+    for (const [label, kind] of [['休息','rest'],['学习','learn'],['社交','socialize']]) {
+      const button = document.createElement('button'); button.textContent = label;
+      button.onclick = () => act(resident.id, kind); actions.append(button);
+    }
+    card.append(actions); cards.append(card);
+  }
+  const list = $('events'); list.replaceChildren();
+  for (const event of history.events.reverse()) {
+    const item = document.createElement('li');
+    const detail = event.payload.description || event.payload.action || event.payload.name || '';
+    item.textContent = `${labels[event.type] || event.type} · ${event.subject}${detail ? ' · ' + detail : ''}`;
+    list.append(item);
+  }
+  if (!history.events.length) list.textContent = '暂无事件。';
+}
+async function act(id, kind) {
+  try { const result = await api(`/residents/${encodeURIComponent(id)}/actions`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({kind})}); $('message').textContent = result.decision.reason; await refresh(); }
+  catch (error) { $('message').textContent = error.message; }
+}
+$('create').onclick = async () => {
+  const name = $('name').value.trim();
+  if (!name) { $('message').textContent = '请输入名字'; return; }
+  try { const result = await api('/residents', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name})}); $('message').textContent = `${result.resident.name} 已进场`; await refresh(); }
+  catch (error) { $('message').textContent = error.message; }
+};
+$('refresh').onclick = () => refresh().catch(error => $('message').textContent = error.message);
+refresh().catch(error => $('message').textContent = error.message);
+</script>
+</html>

@@ -96,6 +96,14 @@ class ServiceTests(unittest.TestCase):
             response = error
         self.assertEqual(response.code, 400)
 
+    def test_browser_page_is_served(self):
+        with urlopen(self.base_url + "/", timeout=3) as response:
+            self.assertEqual(response.code, 200)
+            self.assertIn("text/html", response.headers["Content-Type"])
+            page = response.read().decode("utf-8")
+            self.assertIn("让角色进场", page)
+            self.assertIn("Mock", page)
+
     def test_legacy_event_database_migrates_in_place(self):
         self._stop_server()
         legacy_path = self.temp / "legacy.sqlite3"

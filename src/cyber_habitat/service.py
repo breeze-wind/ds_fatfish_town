@@ -4,6 +4,7 @@ import json
 import re
 import sqlite3
 import uuid
+from pathlib import Path
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from ipaddress import ip_address
@@ -124,6 +125,16 @@ class HabitatRequestHandler(BaseHTTPRequestHandler):
             self._error(HTTPStatus.BAD_REQUEST, "Host must be localhost or a loopback address")
             return
         parsed = urlsplit(self.path)
+        if parsed.path == "/":
+            body = Path(__file__).with_name("habitat.html").read_bytes()
+            self.send_response(HTTPStatus.OK)
+            self.send_header("Content-Type", "text/html; charset=utf-8")
+            self.send_header("Content-Length", str(len(body)))
+            self.send_header("Cache-Control", "no-store")
+            self.send_header("X-Content-Type-Options", "nosniff")
+            self.end_headers()
+            self.wfile.write(body)
+            return
         if parsed.path in ("/healthz", "/readyz"):
             self._send(HTTPStatus.OK, {"status": "ok"})
             return
