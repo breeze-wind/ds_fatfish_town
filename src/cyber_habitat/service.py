@@ -15,7 +15,7 @@ from .director import WorldDirector
 from .ai import ModelUnavailable, OpenAICompatibleModel, action_prompt, conversation_prompt
 from .autonomy import AutonomousLife
 from .domain import Action, ActionKind, Resident
-from .onebot import OneBotBridge
+from .onebot import OneBotBridge, trusted_internal_hosts
 from .runtime import MockRuntime
 from .store import SQLiteEventStore
 
@@ -124,6 +124,13 @@ class HabitatRequestHandler(BaseHTTPRequestHandler):
         except ValueError:
             return False
 
+    def _host_is_trusted_internal(self) -> bool:
+        try:
+            hostname = urlsplit(f"//{self.headers.get('Host', '')}").hostname
+        except ValueError:
+            return False
+        return bool(hostname and hostname.lower().rstrip(".") in trusted_internal_hosts())
+
     def _read_json(self) -> dict[str, object] | None:
         content_type = self.headers.get_content_type()
         if content_type != "application/json":
@@ -222,10 +229,13 @@ class HabitatRequestHandler(BaseHTTPRequestHandler):
         self._error(HTTPStatus.NOT_FOUND, "route not found")
 
     def do_POST(self) -> None:
-        if not self._host_is_local():
+        parsed = urlsplit(self.path)
+        local_host = self._host_is_local()
+        internal_callback = (parsed.path == "/integrations/onebot/events"
+                             and self._host_is_trusted_internal())
+        if not local_host and not internal_callback:
             self._error(HTTPStatus.BAD_REQUEST, "Host must be localhost or a loopback address")
             return
-        parsed = urlsplit(self.path)
         body = self._read_json()
         if body is None:
             return

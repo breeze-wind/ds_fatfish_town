@@ -39,7 +39,7 @@ The demo creates a resident, accepts a harmless action, blocks a hazardous actio
 - Local browser page for resident creation, state, actions, recent events, and manual world turns. Rule turns choose actions through a fixed Mock policy; AI turns and dialogue require a configured model.
 - First AI resident path: persona and current state prompt, persistent recent conversation, direct DeepSeek connection, AI action proposals validated by World Director, and clear connection status in the browser. A real DeepSeek dialogue and AI turn have been verified locally; see [acceptance record](docs/first-ai-resident-acceptance.md).
 - Opt-in autonomous life: Mori can choose an action on a timed local schedule, based on state, recent conversation, and world events. The browser shows the selected resident, interval, daily API cap, next run, and pause control. It is disabled after every service restart.
-- QQ mobile interaction seam: an optional local OneBot bridge can relay private QQ messages from one configured account into Mori's normal conversation and return a reply. It is not installed or configured here; see [QQ OneBot bridge](docs/qq-onebot-bridge.md).
+- QQ mobile interaction: Compose includes an optional NapCat service behind the `qq` profile. It uses a private service network, persistent QQ/config volumes, a loopback-only WebUI port, and the OneBot v11 adapter. See [Linux QQ bridge setup](docs/qq-onebot-bridge.md).
 - Resident state and state-changing action events persist in SQLite; the service reloads resident state after restart.
 - External DSH bundle provides resident listing, event queries, and action submission through the conversation tool UI.
 - Docker Compose and Dockerfile prepared for later validation. They have not been built or run.
@@ -48,11 +48,11 @@ The standard-library unit and HTTP integration suite passed 18 tests covering co
 
 The DSH bundle was installed into a disposable `DSH_HOME` under `work/`; DSH's config dump included the bundle, and its web process started without plugin load errors. A model-driven tool call was not exercised because that would require configuring an LLM account in the isolated profile.
 
-The service listens on loopback by default. The Compose mapping also binds only to host loopback. There is no authentication yet; keep it local and do not expose the service to a LAN or the internet.
+The service listens on loopback by default. Compose binds the browser service and NapCat WebUI to host loopback; NapCat's OneBot port is private to the Compose network. There is no authentication on the browser service yet; access a server instance through SSH port forwarding and do not expose it to a LAN or the internet.
 
 ### Connect DeepSeek to Mori
 
-Start the service and open its local browser page. DeepSeek's current [official API guide](https://api-docs.deepseek.com/guides/search_fetch) lists `https://api.deepseek.com` and `deepseek-flash`; these are the service defaults. Enter your DeepSeek API key in the page's password field and click **Connect DeepSeek**. With **保存到本机配置** selected, it is stored as plain text in the local, Git-ignored `.env` and automatically loaded after restart. The page can also remove that saved key. The status endpoint and browser never return the key. Clicking **Send** or **AI Advance Day** sends the message, recent conversation, and relevant resident state to DeepSeek. No model call occurs when the key is absent.
+Start the service and open its local browser page. DeepSeek's current [official API guide](https://api-docs.deepseek.com/guides/search_fetch) lists `https://api.deepseek.com` and `deepseek-flash`; these are the service defaults. Enter your DeepSeek API key in the page's password field and click **Connect DeepSeek**. With **保存到本机配置** selected, it is stored as plain text in the local, Git-ignored `.env` and automatically loaded after restart. In the Compose deployment it is stored in `/app/data/.env`, inside the persistent data volume. The page can also remove that saved key. The status endpoint and browser never return the key. Clicking **Send** or **AI Advance Day** sends the message, recent conversation, and relevant resident state to DeepSeek. No model call occurs when the key is absent.
 
 You may instead set `DEEPSEEK_API_KEY` or `HABITAT_AI_API_KEY` in the service process environment. Do not paste the key into chat or commit it. Automated tests use a fake local model and mocked requests; a separate manual acceptance check used the real DeepSeek API.
 

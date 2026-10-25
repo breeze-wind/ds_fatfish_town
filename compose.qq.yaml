@@ -1,0 +1,18 @@
+# Optional Linux QQ bridge overlay. Use only after setting NAPCAT_WEBUI_TOKEN in .env.
+services:
+  napcat:
+    image: ${NAPCAT_IMAGE:-mlikiowa/napcat-docker:latest}
+    profiles: ["qq"]
+    environment:
+      MODE: ws
+      WEBUI_TOKEN: ${NAPCAT_WEBUI_TOKEN:?Set a unique NAPCAT_WEBUI_TOKEN in .env}
+    volumes:
+      - napcat-qq:/app/.config/QQ
+      - napcat-config:/app/napcat/config
+    ports:
+      - "127.0.0.1:6099:6099"
+    restart: unless-stopped
+
+volumes:
+  napcat-qq:
+  napcat-config:

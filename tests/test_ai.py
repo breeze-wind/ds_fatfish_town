@@ -63,6 +63,18 @@ class ModelTests(unittest.TestCase):
             reloaded.forget_saved_key()
             self.assertNotIn("HABITAT_AI_API_KEY=", path.read_text(encoding="utf-8"))
 
+    def test_environment_config_path_persists_key_for_container_volume(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "data" / ".env"
+            with patch.dict("os.environ", {"HABITAT_AI_CONFIG_PATH": str(path)}):
+                model = OpenAICompatibleModel(api_key="")
+                model.remember_api_key("volume-key-only")
+                reloaded = OpenAICompatibleModel()
+            self.assertEqual(reloaded.api_key, "volume-key-only")
+            self.assertTrue(path.exists())
+            reloaded.forget_saved_key()
+            self.assertNotIn("HABITAT_AI_API_KEY=", path.read_text(encoding="utf-8"))
+
     def test_local_chat_completions_request(self):
         captured = {}
 

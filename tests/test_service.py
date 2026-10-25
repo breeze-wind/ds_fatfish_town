@@ -8,6 +8,7 @@ import uuid
 from pathlib import Path
 from urllib.error import HTTPError
 from urllib.request import Request, urlopen
+from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
@@ -225,6 +226,42 @@ class ServiceTests(unittest.TestCase):
         self.assertEqual(status, 200)
         self.assertEqual(result["event"]["type"], "resident.spoke")
         self.assertEqual(self.server.onebot.sent, ["手机上好。"])
+
+    def test_trusted_compose_host_is_only_allowed_for_onebot_callback(self):
+        class FakeBridge:
+            configured = True
+            resident_id = "mori"
+            sent = []
+
+            def accepts(self, _authorization, event):
+                return event.get("raw_message")
+
+            def send_private(self, text):
+                self.sent.append(text)
+
+        class FakeModel:
+            ready = True
+            model = "fake"
+
+            def complete(self, _messages, **_kwargs):
+                return "收到。"
+
+        self.server.onebot = FakeBridge()
+        self.server.model = FakeModel()
+        self.request("POST", "/residents", {"id": "mori", "name": "Mori"})
+        payload = json.dumps({"post_type": "message", "message_type": "private",
+                              "user_id": 1, "raw_message": "你好"}).encode("utf-8")
+        callback = Request(self.base_url + "/integrations/onebot/events", data=payload, method="POST",
+                           headers={"Host": "cyber-habitat:8765", "Content-Type": "application/json"})
+        with patch.dict("os.environ", {"HABITAT_TRUSTED_INTERNAL_HOSTS": "cyber-habitat,napcat"}):
+            with urlopen(callback, timeout=3) as response:
+                self.assertEqual(response.status, 200)
+            status_request = Request(self.base_url + "/healthz", headers={"Host": "cyber-habitat:8765"})
+            try:
+                status = urlopen(status_request, timeout=3).status
+            except HTTPError as error:
+                status = error.code
+        self.assertEqual(status, 400)
 
     def test_legacy_event_database_migrates_in_place(self):
         self._stop_server()

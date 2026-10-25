@@ -15,12 +15,22 @@ def _config_value(name: str) -> str:
     if value:
         return value
     try:
-        for line in open(".env", encoding="utf-8"):
-            if line.startswith(name + "="):
-                return line.partition("=")[2].strip()
+        with open(".env", encoding="utf-8") as config:
+            for line in config:
+                if line.startswith(name + "="):
+                    return line.partition("=")[2].strip()
     except FileNotFoundError:
         pass
     return ""
+
+
+def trusted_internal_hosts() -> set[str]:
+    """Explicit Compose service names permitted for private container traffic."""
+    return {
+        host.strip().lower().rstrip(".")
+        for host in _config_value("HABITAT_TRUSTED_INTERNAL_HOSTS").split(",")
+        if host.strip()
+    }
 
 
 class OneBotBridge:
@@ -33,12 +43,15 @@ class OneBotBridge:
         self.resident_id = _config_value("HABITAT_ONEBOT_RESIDENT_ID")
         if self.url:
             parsed = urlsplit(self.url)
+            hostname = (parsed.hostname or "").lower().rstrip(".")
             try:
-                local = parsed.hostname == "localhost" or ip_address(parsed.hostname or "").is_loopback
+                local = hostname == "localhost" or ip_address(hostname).is_loopback
             except ValueError:
                 local = False
-            if parsed.scheme != "http" or not local or parsed.username or parsed.password or parsed.query or parsed.fragment:
-                raise ValueError("OneBot URL must be local loopback HTTP without credentials")
+            internal = hostname in trusted_internal_hosts()
+            if (parsed.scheme != "http" or not (local or internal) or parsed.username or parsed.password
+                    or parsed.query or parsed.fragment or parsed.path not in ("", "/")):
+                raise ValueError("OneBot URL must use loopback HTTP or an explicitly trusted internal host")
 
     @property
     def configured(self) -> bool:

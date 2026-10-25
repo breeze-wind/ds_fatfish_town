@@ -5,7 +5,17 @@ services:
     command: ["python", "-m", "cyber_habitat", "--db", "${DATABASE_PATH:-/app/data/world.sqlite3}", "serve", "--host", "0.0.0.0", "--port", "8765"]
     environment:
       DATABASE_PATH: ${DATABASE_PATH:-/app/data/world.sqlite3}
+      HABITAT_AI_CONFIG_PATH: /app/data/.env
       WORLD_RANDOM_EVENT_CHANCE: ${WORLD_RANDOM_EVENT_CHANCE:-0.15}
+      HABITAT_AI_BASE_URL: ${HABITAT_AI_BASE_URL:-}
+      HABITAT_AI_MODEL: ${HABITAT_AI_MODEL:-}
+      HABITAT_AI_API_KEY: ${HABITAT_AI_API_KEY:-}
+      HABITAT_ONEBOT_URL: ${HABITAT_ONEBOT_URL:-http://napcat:5700}
+      HABITAT_ONEBOT_ACCESS_TOKEN: ${HABITAT_ONEBOT_ACCESS_TOKEN:-}
+      HABITAT_ONEBOT_INBOUND_TOKEN: ${HABITAT_ONEBOT_INBOUND_TOKEN:-}
+      HABITAT_ONEBOT_TARGET_USER_ID: ${HABITAT_ONEBOT_TARGET_USER_ID:-}
+      HABITAT_ONEBOT_RESIDENT_ID: ${HABITAT_ONEBOT_RESIDENT_ID:-}
+      HABITAT_TRUSTED_INTERNAL_HOSTS: ${HABITAT_TRUSTED_INTERNAL_HOSTS:-cyber-habitat,napcat}
     volumes:
       - habitat-data:/app/data
     ports:

@@ -4,6 +4,7 @@ import threading
 import unittest
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
+from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
@@ -47,6 +48,14 @@ class OneBotTests(unittest.TestCase):
             server.shutdown()
             server.server_close()
             thread.join(timeout=2)
+
+    def test_docker_service_name_requires_explicit_trust(self):
+        with patch.dict("os.environ", {"HABITAT_TRUSTED_INTERNAL_HOSTS": "napcat,cyber-habitat"}):
+            bridge = OneBotBridge("http://napcat:5700", "outbound", "123", "inbound")
+        self.assertEqual(bridge.url, "http://napcat:5700")
+        with patch.dict("os.environ", {"HABITAT_TRUSTED_INTERNAL_HOSTS": "napcat,cyber-habitat"}):
+            with self.assertRaises(ValueError):
+                OneBotBridge("http://other-service:5700", "outbound", "123", "inbound")
 
 
 if __name__ == "__main__":
