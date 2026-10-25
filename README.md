@@ -38,6 +38,7 @@ The demo creates a resident, accepts a harmless action, blocks a hazardous actio
 - Local HTTP service with health/readiness, resident create/read, action submission, and event query routes.
 - Local browser page for resident creation, state, actions, recent events, and manual world turns. Rule turns choose actions through a fixed Mock policy; AI turns and dialogue require a configured model.
 - First AI resident path: persona and current state prompt, persistent recent conversation, direct DeepSeek connection, AI action proposals validated by World Director, and clear connection status in the browser. A real DeepSeek dialogue and AI turn have been verified locally; see [acceptance record](docs/first-ai-resident-acceptance.md).
+- Opt-in autonomous life: Mori can choose an action on a timed local schedule, based on state, recent conversation, and world events. The browser shows the selected resident, interval, daily API cap, next run, and pause control. It is disabled after every service restart.
 - Resident state and state-changing action events persist in SQLite; the service reloads resident state after restart.
 - External DSH bundle provides resident listing, event queries, and action submission through the conversation tool UI.
 - Docker Compose and Dockerfile prepared for later validation. They have not been built or run.

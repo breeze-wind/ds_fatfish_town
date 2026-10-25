@@ -22,6 +22,8 @@ All JSON request bodies must use `Content-Type: application/json`, be a JSON obj
 | `GET /residents/{id}/conversation` | none | `200` with the latest 30 messages |
 | `POST /residents/{id}/conversation` | `{"message":"你好"}` | `200` with AI answer and `resident.spoke` event; `503` without a model |
 | `POST /world/ai-tick` | `{}` | `200` with AI-proposed actions passed through World Director; `503` without a model |
+| `GET /autonomy` | none | `200` with local autonomous-life status and daily call counter |
+| `POST /autonomy` | `{"enabled":true,"resident_id":"...","interval_seconds":1800,"max_calls_per_day":24}` | starts or pauses opt-in autonomous life; interval 60–86400 seconds, cap 1–48 |
 
 Action kinds outside the documented vocabulary return `400`. `attack` is a known hazardous action: it returns `200` with `decision.allowed=false` and appends `action.blocked`. Unknown residents return `404`.
 
@@ -33,4 +35,6 @@ No authentication, user accounts, deletion route, cross-origin browser access, o
 
 ## First AI resident
 
-The browser can ask an OpenAI-compatible chat-completions model to speak as a resident or propose an action. The default model route is DeepSeek, but remains disconnected until a key is explicitly supplied in the local page or process environment. Other endpoints require `HABITAT_AI_BASE_URL` and `HABITAT_AI_MODEL`; put any `HABITAT_AI_API_KEY` in the process environment, never in Git. The endpoint must use HTTPS except for local loopback HTTP. Conversation history is stored in SQLite and the last 12 messages plus current state are sent to the model. AI action proposals must be a JSON object with one `kind`; all proposals pass through World Director, so `attack` remains blocked. Invalid proposals are recorded as `ai.proposal.rejected`. Failed model requests do not create a conversation exchange. The local HTTP server handles requests serially, so a slow model request can temporarily delay other requests.
+The browser can ask an OpenAI-compatible chat-completions model to speak as a resident or propose an action. The default model route is DeepSeek, but remains disconnected until a key is explicitly supplied in the local page or process environment. Other endpoints require `HABITAT_AI_BASE_URL` and `HABITAT_AI_MODEL`; put any `HABITAT_AI_API_KEY` in the process environment, never in Git. The endpoint must use HTTPS except for local loopback HTTP. Conversation history is stored in SQLite and the last 12 messages plus current state are sent to the model. AI action proposals contain a `kind` and a short `reason`; all proposals pass through World Director, so `attack` remains blocked. Invalid proposals are recorded as `ai.proposal.rejected`. Failed model requests do not create a conversation exchange. The local HTTP server handles requests serially, so a slow model request can temporarily delay other requests.
+
+Autonomous life is local, explicitly enabled, and is always paused after a service restart. It schedules a selected resident with a 60-second minimum interval and a per-calendar-day model-call cap. A failed model call counts against the cap to avoid retry costs. The scheduler holds no secret and sends the same state, recent conversation, and recent world events that a manual AI turn sends.

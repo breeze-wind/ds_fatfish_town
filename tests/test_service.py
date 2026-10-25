@@ -125,7 +125,7 @@ class ServiceTests(unittest.TestCase):
 
             def complete(self, messages, *, json_mode=False):
                 self.calls.append(messages)
-                return '{"kind":"learn"}' if json_mode else "你好，我是 Mori。"
+                return '{"kind":"learn","reason":"我想继续了解这个世界"}' if json_mode else "你好，我是 Mori。"
 
         model = FakeModel()
         self.server.model = model
@@ -148,7 +148,7 @@ class ServiceTests(unittest.TestCase):
 
     def test_ai_harmful_proposal_is_blocked(self):
         self.server.model = type("BadModel", (), {
-            "ready": True, "model": "fake", "complete": lambda _self, _messages, **_kwargs: '{"kind":"attack"}',
+            "ready": True, "model": "fake", "complete": lambda _self, _messages, **_kwargs: '{"kind":"attack","reason":"test"}',
         })()
         self.request("POST", "/residents", {"id": "mori", "name": "Mori"})
         status, result = self.request("POST", "/world/ai-tick", {})
@@ -173,6 +173,21 @@ class ServiceTests(unittest.TestCase):
         self.assertNotIn("test-only-secret", json.dumps(self.request("GET", "/ai/status")[1]))
         self.assertEqual(self.request("POST", "/ai/disconnect", {})[1], {"configured": False})
         self.assertFalse(self.request("GET", "/ai/status")[1]["configured"])
+
+    def test_autonomy_is_opt_in_and_validates_limits(self):
+        self.server.model = type("ReadyModel", (), {"ready": True, "model": "fake"})()
+        self.request("POST", "/residents", {"id": "mori", "name": "Mori"})
+        self.assertFalse(self.request("GET", "/autonomy")[1]["enabled"])
+        self.assertEqual(self.request("POST", "/autonomy", {
+            "enabled": True, "resident_id": "mori", "interval_seconds": 59, "max_calls_per_day": 2,
+        })[0], 400)
+        status, result = self.request("POST", "/autonomy", {
+            "enabled": True, "resident_id": "mori", "interval_seconds": 60, "max_calls_per_day": 2,
+        })
+        self.assertEqual(status, 200)
+        self.assertTrue(result["enabled"])
+        self.assertEqual(result["resident_id"], "mori")
+        self.assertEqual(self.request("POST", "/autonomy", {"enabled": False})[1]["enabled"], False)
 
     def test_legacy_event_database_migrates_in_place(self):
         self._stop_server()

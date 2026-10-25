@@ -8,10 +8,12 @@ from pathlib import Path
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from ipaddress import ip_address
+from urllib.request import Request, urlopen
 from urllib.parse import parse_qs, urlsplit
 
 from .director import WorldDirector
-from .ai import ModelUnavailable, OpenAICompatibleModel, conversation_prompt
+from .ai import ModelUnavailable, OpenAICompatibleModel, action_prompt, conversation_prompt
+from .autonomy import AutonomousLife
 from .domain import Action, ActionKind, Resident
 from .runtime import MockRuntime
 from .store import SQLiteEventStore
@@ -50,12 +52,22 @@ class HabitatHTTPServer(HTTPServer):
         self.model = OpenAICompatibleModel()
         try:
             super().__init__(address, HabitatRequestHandler)
+            self.autonomy = AutonomousLife(self._autonomous_step)
         except Exception:
             self.store.close()
             raise
 
+    def _autonomous_step(self, resident_id: str) -> None:
+        # The single-threaded HTTP server serializes SQLite access and model calls.
+        url = f"http://127.0.0.1:{self.server_port}/world/ai-tick"
+        request = Request(url, data=json.dumps({"resident_id": resident_id}).encode("utf-8"),
+                          headers={"Content-Type": "application/json"}, method="POST")
+        with urlopen(request, timeout=90) as response:
+            response.read()
+
     def server_close(self) -> None:
         try:
+            self.autonomy.close()
             super().server_close()
         finally:
             self.store.close()
@@ -144,6 +156,9 @@ class HabitatRequestHandler(BaseHTTPRequestHandler):
             self._send(HTTPStatus.OK, {"configured": self.server.model.ready,
                                        "model": self.server.model.model if self.server.model.ready else None})
             return
+        if parsed.path == "/autonomy":
+            self._send(HTTPStatus.OK, self.server.autonomy.status())
+            return
         if parsed.path == "/residents":
             self._send(HTTPStatus.OK, {"residents": [
                 _resident_json(resident) for resident in self.server.director.residents.values()
@@ -217,7 +232,33 @@ class HabitatRequestHandler(BaseHTTPRequestHandler):
                 self._error(HTTPStatus.BAD_REQUEST, "disconnect body must be empty")
                 return
             self.server.model.api_key = ""
+            self.server.autonomy.configure(None, enabled=False)
             self._send(HTTPStatus.OK, {"configured": False})
+            return
+        if parsed.path == "/autonomy":
+            if set(body) - {"enabled", "resident_id", "interval_seconds", "max_calls_per_day"} or type(body.get("enabled")) is not bool:
+                self._error(HTTPStatus.BAD_REQUEST, "body requires enabled and accepts resident_id, interval_seconds, max_calls_per_day")
+                return
+            enabled = body["enabled"]
+            resident_id = body.get("resident_id")
+            if enabled and (not isinstance(resident_id, str) or resident_id not in self.server.director.residents):
+                self._error(HTTPStatus.NOT_FOUND, "resident not found")
+                return
+            if enabled and not self.server.model.ready:
+                self._error(HTTPStatus.SERVICE_UNAVAILABLE, "AI model is not configured")
+                return
+            interval = body.get("interval_seconds", 1800)
+            maximum = body.get("max_calls_per_day", 24)
+            if type(interval) is not int or type(maximum) is not int:
+                self._error(HTTPStatus.BAD_REQUEST, "interval and daily cap must be integers")
+                return
+            try:
+                status = self.server.autonomy.configure(resident_id, enabled=enabled,
+                                                         interval_seconds=interval, max_calls_per_day=maximum)
+            except ValueError as exc:
+                self._error(HTTPStatus.BAD_REQUEST, str(exc))
+                return
+            self._send(HTTPStatus.OK, status)
             return
         if parsed.path == "/world/tick":
             if body:
@@ -233,8 +274,8 @@ class HabitatRequestHandler(BaseHTTPRequestHandler):
             })
             return
         if parsed.path == "/world/ai-tick":
-            if body:
-                self._error(HTTPStatus.BAD_REQUEST, "AI tick body must be an empty object")
+            if set(body) - {"resident_id"}:
+                self._error(HTTPStatus.BAD_REQUEST, "AI tick accepts only resident_id")
                 return
             if not self.server.model.ready:
                 self._error(HTTPStatus.SERVICE_UNAVAILABLE, "AI model is not configured")
@@ -242,19 +283,25 @@ class HabitatRequestHandler(BaseHTTPRequestHandler):
             if not self.server.director.residents:
                 self._error(HTTPStatus.CONFLICT, "create a resident before advancing the world")
                 return
+            target = body.get("resident_id")
+            if target is not None and (not isinstance(target, str) or target not in self.server.director.residents):
+                self._error(HTTPStatus.NOT_FOUND, "resident not found")
+                return
             events = []
-            for resident_id in sorted(self.server.director.residents):
+            for resident_id in ([target] if target else sorted(self.server.director.residents)):
                 resident = self.server.director.residents[resident_id]
-                prompt = [{"role": "system", "content":
-                           "你是 Cyber Habitat 居民。根据状态选择下一步动作。只输出一个 JSON 对象，"
-                           "格式为 {\"kind\":\"rest|learn|socialize\"}。不要输出其他内容。"},
-                          {"role": "user", "content":
-                           f"名字：{resident.name}；精力：{resident.energy}；安全：{resident.safety}；成长：{resident.growth}"}]
+                recent_events = [{"type": event.event_type, "subject": event.subject,
+                                  "payload": event.payload} for event in self.server.store.list_events(30)
+                                 if event.subject in {"world", resident_id} and event.event_type != "resident.spoke"]
+                prompt = action_prompt(resident.name, {"energy": resident.energy,
+                                       "safety": resident.safety, "growth": resident.growth},
+                                       self.server.store.conversation(resident_id, 6), recent_events)
                 try:
                     raw = self.server.model.complete(prompt, json_mode=True)
                     proposal = json.loads(raw)
                     kind = ActionKind(proposal["kind"])
-                    if set(proposal) != {"kind"}:
+                    reason = proposal["reason"]
+                    if set(proposal) != {"kind", "reason"} or not isinstance(reason, str) or not 1 <= len(reason.strip()) <= 140:
                         raise ValueError("unexpected proposal fields")
                 except ModelUnavailable as exc:
                     self._error(HTTPStatus.BAD_GATEWAY, str(exc))
@@ -263,9 +310,9 @@ class HabitatRequestHandler(BaseHTTPRequestHandler):
                     events.append(self.server.store.append("ai.proposal.rejected", resident_id,
                                                            {"reason": "invalid action proposal"}))
                     continue
-                decision = self.server.director.submit(resident_id, Action(resident_id, kind, "AI proposal"))
+                decision = self.server.director.submit(resident_id, Action(resident_id, kind, reason.strip()))
                 events.extend(decision.events)
-            events.append(self.server.store.append("world.ai_tick", "world", {"residents": len(self.server.director.residents)}))
+            events.append(self.server.store.append("world.ai_tick", "world", {"residents": len([target] if target else self.server.director.residents)}))
             self._send(HTTPStatus.OK, {"residents": [_resident_json(r) for r in self.server.director.residents.values()],
                                        "events": [_event_json(event) for event in events]})
             return

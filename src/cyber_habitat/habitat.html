@@ -20,6 +20,7 @@
 <p class="muted">本地世界预览 · <span id="aiStatus">正在检查 AI 连接…</span></p>
 <section><div class="row"><input id="apiKey" type="password" autocomplete="off" placeholder="在本机输入 DeepSeek API Key" aria-label="DeepSeek API Key"><button id="connect">连接 DeepSeek</button><button id="disconnect">断开</button></div><p class="muted">密钥仅保存在本次服务进程的内存中；重启后需要重新输入。发送消息和 AI 推进时，相关内容会发给 DeepSeek。</p></section>
 <section><div class="row"><input id="name" value="Mori" maxlength="80" aria-label="角色名字"><button id="create">让角色进场</button><button id="tick">规则推进一天</button><button id="aiTick" disabled>AI 推进一天</button><button id="refresh">刷新世界</button></div><p id="message" role="status"></p></section>
+<section><h2>自主生活</h2><p class="muted">开启后，居民会定时自己决定动作。服务重启或断开模型时会自动暂停。</p><div class="row"><label>间隔（分钟） <input id="intervalMinutes" type="number" min="1" max="1440" value="30" style="width:75px"></label><label>每天最多 <input id="dailyLimit" type="number" min="1" max="48" value="24" style="width:65px"></label><button id="startLife" disabled>开启自主生活</button><button id="stopLife">暂停</button></div><p id="lifeStatus" class="muted">正在读取状态…</p></section>
 <section><h2>居民</h2><div id="residents" class="cards"></div></section>
 <section><h2>和居民说话</h2><div class="row"><select id="chatResident" aria-label="选择居民"></select><input id="chatMessage" maxlength="1000" placeholder="对居民说点什么"><button id="send" disabled>发送</button></div><div id="chatLog"></div></section>
 <section><h2>最近事件</h2><ol id="events"></ol></section>
@@ -56,7 +57,7 @@ async function refresh() {
   const list = $('events'); list.replaceChildren();
   for (const event of history.events.reverse()) {
     const item = document.createElement('li');
-    const detail = event.payload.description || actions[event.payload.action] || event.payload.name || event.payload.message || '';
+    const detail = event.payload.description || (event.payload.action ? `${actions[event.payload.action] || event.payload.action}${event.payload.detail ? ' · ' + event.payload.detail : ''}` : '') || event.payload.name || event.payload.message || '';
     item.textContent = `${labels[event.type] || event.type} · ${event.subject}${detail ? ' · ' + detail : ''}`;
     list.append(item);
   }
@@ -106,7 +107,25 @@ $('chatMessage').onkeydown = event => { if (event.key === 'Enter') $('send').cli
 function showAiStatus(status) {
   $('aiStatus').textContent = status.configured ? `AI 已连接：${status.model}` : 'AI 未连接；输入密钥后可对话和 AI 推进';
   $('aiTick').disabled = !status.configured; $('send').disabled = !status.configured;
+  $('startLife').disabled = !status.configured;
 }
+async function refreshLife() {
+  const life = await api('/autonomy');
+  const next = life.next_at ? new Date(life.next_at * 1000).toLocaleTimeString() : '未安排';
+  $('lifeStatus').textContent = `${life.enabled ? '运行中' : '已暂停'} · 今天已调用 ${life.calls_today}/${life.max_calls_per_day} 次 · 下次 ${next}${life.in_flight ? ' · 正在决定' : ''}${life.last_error ? ' · 最近错误 ' + life.last_error : ''}`;
+}
+$('startLife').onclick = async () => {
+  const resident_id = $('chatResident').value;
+  if (!resident_id) { $('message').textContent = '先让角色进场'; return; }
+  const interval_seconds = Number($('intervalMinutes').value) * 60;
+  const max_calls_per_day = Number($('dailyLimit').value);
+  try { await api('/autonomy', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({enabled:true,resident_id,interval_seconds,max_calls_per_day})}); $('message').textContent = '自主生活已开启'; await refreshLife(); }
+  catch (error) { $('message').textContent = error.message; }
+};
+$('stopLife').onclick = async () => {
+  try { await api('/autonomy', {method:'POST',headers:{'Content-Type':'application/json'},body:'{"enabled":false}'}); $('message').textContent = '已暂停自主生活'; await refreshLife(); }
+  catch (error) { $('message').textContent = error.message; }
+};
 $('connect').onclick = async () => {
   const key = $('apiKey').value.trim(); if (!key) { $('message').textContent = '请输入 API Key'; return; }
   $('connect').disabled = true;
@@ -115,11 +134,13 @@ $('connect').onclick = async () => {
   finally { $('connect').disabled = false; }
 };
 $('disconnect').onclick = async () => {
-  try { showAiStatus(await api('/ai/disconnect', {method:'POST',headers:{'Content-Type':'application/json'},body:'{}'})); $('message').textContent = '已断开'; }
+  try { showAiStatus(await api('/ai/disconnect', {method:'POST',headers:{'Content-Type':'application/json'},body:'{}'})); $('message').textContent = '已断开'; await refreshLife(); }
   catch (error) { $('message').textContent = error.message; }
 };
 api('/ai/status').then(showAiStatus).catch(error => $('aiStatus').textContent = error.message);
 $('refresh').onclick = () => refresh().catch(error => $('message').textContent = error.message);
 refresh().catch(error => $('message').textContent = error.message);
+refreshLife().catch(error => $('lifeStatus').textContent = error.message);
+setInterval(() => refreshLife().catch(error => $('lifeStatus').textContent = error.message), 10000);
 </script>
 </html>
