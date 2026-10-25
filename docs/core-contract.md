@@ -24,4 +24,4 @@
 
 ## Sprint 0 allowed action kinds
 
-`rest`, `learn`, `socialize`, `attack`. `attack` is deliberately blocked to demonstrate a safety invariant. Unknown action kinds are rejected as invalid input and are not sent to a runtime.
+`rest`, `learn`, `socialize`, `explore`, `create`, `attack`. `attack` is deliberately blocked to demonstrate a safety invariant. Unknown action kinds are rejected as invalid input and are not sent to a runtime.

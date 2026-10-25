@@ -39,7 +39,7 @@ class WorldDirector:
             elif resident.growth < 60:
                 kind = ActionKind.LEARN
             else:
-                kind = ActionKind.SOCIALIZE
+                kind = ActionKind.EXPLORE if resident.safety >= 50 else ActionKind.SOCIALIZE
             decision = self.submit(resident_id, Action(resident_id, kind, "mock autonomous turn"))
             events.extend(decision.events)
         events.append(self.store.append("world.tick", "world", {"residents": len(self.residents)}))

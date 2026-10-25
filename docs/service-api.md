@@ -13,7 +13,7 @@ All JSON request bodies must use `Content-Type: application/json`, be a JSON obj
 | `GET /residents` | none | `200 {"residents":[...]}` |
 | `GET /residents/{id}` | none | `200 {"resident":...}` or `404` |
 | `POST /residents` | `{"name":"Mori"}`; optional `id` | `201` with resident and `resident.created` event; duplicate id is `409` |
-| `POST /residents/{id}/actions` | `{"kind":"rest|learn|socialize|attack"}`; optional `detail` | `200` with decision, current resident, and emitted events |
+| `POST /residents/{id}/actions` | `{"kind":"rest|learn|socialize|explore|create|attack"}`; optional `detail` | `200` with decision, current resident, and emitted events |
 | `POST /world/tick` | `{}` | `200` with updated residents and events; `409` when no residents exist |
 | `GET /events?limit=100` | optional limit 1–500 | `200 {"events":[...]}` in event order |
 | `GET /ai/status` | none | `200` with model availability and model name, never a key |

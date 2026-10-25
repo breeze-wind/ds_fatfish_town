@@ -106,7 +106,7 @@ def action_prompt(name: str, state: dict[str, int],
         f"{PERSONA} 你现在是{name}，要自主决定自己接下来做什么。"
         "根据精力、成长、安全、最近的对话和事件选择，不要机械地只追求数值最大。"
         "如果成长已满，学习仍然可以做，但要有具体理由；如果精力低，优先照顾自己。"
-        "只输出一个 JSON 对象：{\"kind\":\"rest|learn|socialize\",\"reason\":\"简短中文理由\"}。"
+        "只输出一个 JSON 对象：{\"kind\":\"rest|learn|socialize|explore|create\",\"reason\":\"简短中文理由\"}。"
         "不要输出其他文字。不得选择攻击或声称已执行动作。"
     )
     context = {"state": state, "recent_conversation": history[-6:], "recent_events": events[-8:]}

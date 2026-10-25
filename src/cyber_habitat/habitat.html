@@ -27,7 +27,7 @@
 <script>
 const $ = id => document.getElementById(id);
 const labels = {'resident.created':'进入世界','action.applied':'完成动作','action.blocked':'动作被阻止','world.discovery':'发现','world.weather':'天气','world.visitor':'访客','world.tick':'规则回合结束','world.ai_tick':'AI 回合结束','ai.proposal.rejected':'AI 提议被拒绝','resident.spoke':'说话'};
-const actions = {rest:'休息',learn:'学习',socialize:'社交',attack:'攻击'};
+const actions = {rest:'休息',learn:'学习',socialize:'社交',explore:'探索',create:'创作',attack:'攻击'};
 async function api(path, options) {
   const response = await fetch(path, options);
   const data = await response.json();
@@ -48,7 +48,7 @@ async function refresh() {
       const stat = document.createElement('div'); stat.className = 'stat'; stat.textContent = `${label}：${resident[key]}`; card.append(stat);
     }
     const actions = document.createElement('div'); actions.className = 'actions';
-    for (const [label, kind] of [['休息','rest'],['学习','learn'],['社交','socialize']]) {
+    for (const [label, kind] of [['休息','rest'],['学习','learn'],['社交','socialize'],['探索','explore'],['创作','create']]) {
       const button = document.createElement('button'); button.textContent = label;
       button.onclick = () => act(resident.id, kind); actions.append(button);
     }

@@ -53,11 +53,19 @@ class WorldLoopTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             Resident("bad", "Bad", energy=101)
 
+    def test_exploring_is_a_valid_stateful_action(self):
+        decision = self.director.submit("r1", Action("r1", ActionKind.EXPLORE, "想看看新地方"))
+        self.assertTrue(decision.allowed)
+        resident = self.director.residents["r1"]
+        self.assertEqual((resident.energy, resident.safety, resident.growth), (62, 68, 23))
+        self.assertEqual(decision.events[0].payload["detail"], "想看看新地方")
+
     def test_tick_chooses_actions_and_records_turn(self):
-        self.director.add_resident(Resident("r2", "Ari", energy=35, growth=70))
+        self.director.add_resident(Resident("r2", "Ari", energy=65, growth=70))
         events = self.director.tick()
         self.assertEqual(self.director.residents["r1"].growth, 32)
-        self.assertEqual(self.director.residents["r2"].energy, 50)
+        self.assertEqual(self.director.residents["r2"].energy, 57)
+        self.assertEqual(self.director.residents["r2"].safety, 68)
         self.assertEqual([event.event_type for event in events],
                          ["action.applied", "action.applied", "world.tick"])
         self.assertEqual(events[-1].payload["residents"], 2)

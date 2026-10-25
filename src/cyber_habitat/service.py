@@ -386,7 +386,7 @@ class HabitatRequestHandler(BaseHTTPRequestHandler):
             try:
                 kind = ActionKind(body["kind"])
             except ValueError:
-                self._error(HTTPStatus.BAD_REQUEST, "kind must be rest, learn, socialize, or attack")
+                self._error(HTTPStatus.BAD_REQUEST, "kind must be rest, learn, socialize, explore, create, or attack")
                 return
             try:
                 decision = self.server.director.submit(resident_id, Action(resident_id, kind, detail))

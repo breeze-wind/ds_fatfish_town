@@ -8,6 +8,8 @@ class ActionKind(StrEnum):
     REST = "rest"
     LEARN = "learn"
     SOCIALIZE = "socialize"
+    EXPLORE = "explore"
+    CREATE = "create"
     ATTACK = "attack"
 
 

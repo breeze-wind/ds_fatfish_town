@@ -9,6 +9,8 @@ class MockRuntime:
             ActionKind.REST: {"energy": 15},
             ActionKind.LEARN: {"energy": -10, "growth": 12},
             ActionKind.SOCIALIZE: {"energy": -5, "safety": 5},
+            ActionKind.EXPLORE: {"energy": -8, "growth": 3, "safety": -2},
+            ActionKind.CREATE: {"energy": -7, "growth": 4},
         }.get(action.kind)
         if changes is None:
             raise ValueError(f"runtime does not implement {action.kind.value}")
