@@ -15,6 +15,7 @@ from .director import WorldDirector
 from .ai import ModelUnavailable, OpenAICompatibleModel, action_prompt, conversation_prompt
 from .autonomy import AutonomousLife
 from .domain import Action, ActionKind, Resident
+from .onebot import OneBotBridge
 from .runtime import MockRuntime
 from .store import SQLiteEventStore
 
@@ -51,6 +52,7 @@ class HabitatHTTPServer(HTTPServer):
             MockRuntime(), self.store, seed=seed, random_event_chance=random_event_chance
         )
         self.model = OpenAICompatibleModel()
+        self.onebot = OneBotBridge()
         try:
             super().__init__(address, HabitatRequestHandler)
             self.autonomy = AutonomousLife(self._autonomous_step)
@@ -65,6 +67,17 @@ class HabitatHTTPServer(HTTPServer):
                           headers={"Content-Type": "application/json"}, method="POST")
         with urlopen(request, timeout=90) as response:
             response.read()
+
+    def respond_to_resident(self, resident_id: str, message: str):
+        if not self.model.ready:
+            raise ModelUnavailable("AI model is not configured")
+        resident = self.director.residents[resident_id]
+        prompt = conversation_prompt(resident.name,
+                                     {"energy": resident.energy, "safety": resident.safety,
+                                      "growth": resident.growth},
+                                     self.store.conversation(resident_id), message)
+        answer = self.model.complete(prompt)
+        return answer, self.store.record_exchange(resident_id, message, answer)
 
     def server_close(self) -> None:
         try:
@@ -161,6 +174,10 @@ class HabitatRequestHandler(BaseHTTPRequestHandler):
         if parsed.path == "/autonomy":
             self._send(HTTPStatus.OK, self.server.autonomy.status())
             return
+        if parsed.path == "/integrations/onebot/status":
+            self._send(HTTPStatus.OK, {"configured": self.server.onebot.configured,
+                                       "resident_id": self.server.onebot.resident_id or None})
+            return
         if parsed.path == "/residents":
             self._send(HTTPStatus.OK, {"residents": [
                 _resident_json(resident, self.server.store.get_intention(resident.id))
@@ -238,6 +255,28 @@ class HabitatRequestHandler(BaseHTTPRequestHandler):
                 self.server.model.key_source = "memory"
             self._send(HTTPStatus.OK, {"configured": True, "model": self.server.model.model,
                                        "key_source": self.server.model.key_source})
+            return
+        if parsed.path == "/integrations/onebot/events":
+            text = self.server.onebot.accepts(self.headers.get("Authorization"), body)
+            if text is None:
+                self._error(HTTPStatus.UNAUTHORIZED, "invalid or unsupported OneBot event")
+                return
+            resident_id = self.server.onebot.resident_id
+            if not resident_id and len(self.server.director.residents) == 1:
+                resident_id = next(iter(self.server.director.residents))
+            if not resident_id or resident_id not in self.server.director.residents:
+                self._error(HTTPStatus.CONFLICT, "OneBot resident is not configured")
+                return
+            try:
+                answer, event = self.server.respond_to_resident(resident_id, text)
+                self.server.onebot.send_private(answer)
+            except ModelUnavailable as exc:
+                self._error(HTTPStatus.BAD_GATEWAY, str(exc))
+                return
+            except (OSError, RuntimeError) as exc:
+                self._error(HTTPStatus.BAD_GATEWAY, f"OneBot reply failed: {type(exc).__name__}")
+                return
+            self._send(HTTPStatus.OK, {"event": _event_json(event)})
             return
         if parsed.path == "/ai/disconnect":
             if set(body) - {"forget"}:
@@ -380,17 +419,11 @@ class HabitatRequestHandler(BaseHTTPRequestHandler):
             if not self.server.model.ready:
                 self._error(HTTPStatus.SERVICE_UNAVAILABLE, "AI model is not configured")
                 return
-            resident = self.server.director.residents[resident_id]
-            prompt = conversation_prompt(resident.name,
-                                         {"energy": resident.energy, "safety": resident.safety,
-                                          "growth": resident.growth},
-                                         self.server.store.conversation(resident_id), message)
             try:
-                answer = self.server.model.complete(prompt)
+                answer, event = self.server.respond_to_resident(resident_id, message)
             except ModelUnavailable as exc:
                 self._error(HTTPStatus.BAD_GATEWAY, str(exc))
                 return
-            event = self.server.store.record_exchange(resident_id, message, answer)
             self._send(HTTPStatus.OK, {"answer": answer, "event": _event_json(event)})
             return
 

@@ -24,6 +24,8 @@ All JSON request bodies must use `Content-Type: application/json`, be a JSON obj
 | `POST /world/ai-tick` | `{}` | `200` with AI-proposed actions passed through World Director; `503` without a model |
 | `GET /autonomy` | none | `200` with local autonomous-life status and daily call counter |
 | `POST /autonomy` | `{"enabled":true,"resident_id":"...","interval_seconds":1800,"max_calls_per_day":24}` | starts or pauses opt-in autonomous life; interval 60–86400 seconds, cap 1–48 |
+| `GET /integrations/onebot/status` | none | `200` reports whether the optional local QQ OneBot bridge is configured; no tokens or QQ number returned |
+| `POST /integrations/onebot/events` | authorized OneBot private-message event | sends the message to the selected resident and relays its reply via local OneBot |
 
 Action kinds outside the documented vocabulary return `400`. `attack` is a known hazardous action: it returns `200` with `decision.allowed=false` and appends `action.blocked`. Unknown residents return `404`.
 

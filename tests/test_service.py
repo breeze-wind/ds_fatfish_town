@@ -197,6 +197,35 @@ class ServiceTests(unittest.TestCase):
         self.assertEqual(result["resident_id"], "mori")
         self.assertEqual(self.request("POST", "/autonomy", {"enabled": False})[1]["enabled"], False)
 
+    def test_onebot_private_event_uses_resident_conversation(self):
+        class FakeModel:
+            ready = True
+            model = "fake"
+
+            def complete(self, _messages, **_kwargs):
+                return "手机上好。"
+
+        class FakeBridge:
+            configured = True
+            resident_id = ""
+            sent = []
+
+            def accepts(self, _authorization, event):
+                return event.get("raw_message")
+
+            def send_private(self, text):
+                self.sent.append(text)
+
+        self.server.model = FakeModel()
+        self.server.onebot = FakeBridge()
+        self.request("POST", "/residents", {"id": "mori", "name": "Mori"})
+        status, result = self.request("POST", "/integrations/onebot/events", {
+            "post_type": "message", "message_type": "private", "user_id": 1, "raw_message": "你好",
+        })
+        self.assertEqual(status, 200)
+        self.assertEqual(result["event"]["type"], "resident.spoke")
+        self.assertEqual(self.server.onebot.sent, ["手机上好。"])
+
     def test_legacy_event_database_migrates_in_place(self):
         self._stop_server()
         legacy_path = self.temp / "legacy.sqlite3"
