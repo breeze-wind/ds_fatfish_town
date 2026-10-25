@@ -2,7 +2,7 @@
 
 ## Domain
 
-- `Resident`: stable id, display name, and bounded integer needs (`energy`, `safety`, `growth`), each 0–100.
+- `Resident`: stable id, display name, and bounded integer needs (`energy`, `safety`, `growth`), each 0–100. A separate durable current intention records the resident's short-term direction.
 - `Action`: resident id, action kind, and optional short detail.
 - `Decision`: `allowed` or `blocked`, reason, and event id.
 - `WorldEvent`: append-only id, UTC timestamp, type, subject, JSON payload.
@@ -12,7 +12,7 @@
 1. `WorldDirector.submit(resident, action)` validates that the action targets that resident and matches the action vocabulary.
 2. Hard safety rules reject dangerous actions before the runtime is called.
 3. The runtime applies an allowed effect and returns the updated resident.
-4. The director records the outcome and may record one scheduled random event according to injected probability/RNG.
+4. The director records the outcome and may record one scheduled random event according to injected probability/RNG. An AI resident records its proposed current intention before submitting an action.
 5. The caller receives a decision plus emitted events; failures do not silently report success.
 
 ## Ports

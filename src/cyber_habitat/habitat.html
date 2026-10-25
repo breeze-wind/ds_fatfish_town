@@ -44,6 +44,7 @@ async function refresh() {
   for (const resident of people.residents) {
     const card = document.createElement('article');
     const title = document.createElement('h3'); title.textContent = resident.name; card.append(title);
+    if (resident.intention) { const intention = document.createElement('p'); intention.className = 'muted'; intention.textContent = `现在想做：${resident.intention}`; card.append(intention); }
     for (const [label, key] of [['精力','energy'],['安全','safety'],['成长','growth']]) {
       const stat = document.createElement('div'); stat.className = 'stat'; stat.textContent = `${label}：${resident[key]}`; card.append(stat);
     }
@@ -57,7 +58,7 @@ async function refresh() {
   const list = $('events'); list.replaceChildren();
   for (const event of history.events.reverse()) {
     const item = document.createElement('li');
-    const detail = event.payload.description || (event.payload.action ? `${actions[event.payload.action] || event.payload.action}${event.payload.detail ? ' · ' + event.payload.detail : ''}` : '') || event.payload.name || event.payload.message || '';
+    const detail = event.payload.description || event.payload.intention || (event.payload.action ? `${actions[event.payload.action] || event.payload.action}${event.payload.detail ? ' · ' + event.payload.detail : ''}` : '') || event.payload.name || event.payload.message || '';
     item.textContent = `${labels[event.type] || event.type} · ${event.subject}${detail ? ' · ' + detail : ''}`;
     list.append(item);
   }

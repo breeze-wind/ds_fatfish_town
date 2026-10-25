@@ -125,7 +125,7 @@ class ServiceTests(unittest.TestCase):
 
             def complete(self, messages, *, json_mode=False):
                 self.calls.append(messages)
-                return '{"kind":"learn","reason":"我想继续了解这个世界"}' if json_mode else "你好，我是 Mori。"
+                return '{"kind":"learn","reason":"我想继续了解这个世界","intention":"记录一件今天学到的事"}' if json_mode else "你好，我是 Mori。"
 
         model = FakeModel()
         self.server.model = model
@@ -141,20 +141,26 @@ class ServiceTests(unittest.TestCase):
         self.request("POST", "/residents/mori/conversation", {"message": "你还记得我吗"})
         self.assertIn("你好", model.calls[1][-2]["content"])
         self.assertEqual(self.request("POST", "/world/ai-tick", {})[0], 200)
-        self.assertEqual(self.request("GET", "/residents/mori")[1]["resident"]["growth"], 32)
+        resident = self.request("GET", "/residents/mori")[1]["resident"]
+        self.assertEqual(resident["growth"], 32)
+        self.assertEqual(resident["intention"], "记录一件今天学到的事")
+        self.assertIn("current_intention", model.calls[2][-1]["content"])
         self._stop_server()
         self._start_server()
         self.assertEqual(len(self.request("GET", "/residents/mori/conversation")[1]["messages"]), 4)
+        self.assertEqual(self.request("GET", "/residents/mori")[1]["resident"]["intention"], "记录一件今天学到的事")
 
     def test_ai_harmful_proposal_is_blocked(self):
         self.server.model = type("BadModel", (), {
-            "ready": True, "model": "fake", "complete": lambda _self, _messages, **_kwargs: '{"kind":"attack","reason":"test"}',
+            "ready": True, "model": "fake", "complete": lambda _self, _messages, **_kwargs: '{"kind":"attack","reason":"test","intention":"bad"}',
         })()
         self.request("POST", "/residents", {"id": "mori", "name": "Mori"})
         status, result = self.request("POST", "/world/ai-tick", {})
         self.assertEqual(status, 200)
         self.assertEqual(result["residents"][0]["growth"], 20)
-        self.assertEqual(result["events"][0]["type"], "action.blocked")
+        self.assertEqual([event["type"] for event in result["events"][:2]],
+                         ["resident.intention", "action.blocked"])
+        self.assertEqual(result["residents"][0]["intention"], "bad")
 
     def test_ai_unconfigured_fails_without_recording_conversation(self):
         self.server.model = type("NoModel", (), {"ready": False, "model": ""})()

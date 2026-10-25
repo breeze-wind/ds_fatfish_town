@@ -5,7 +5,7 @@ from pathlib import Path
 
 from .domain import Resident, WorldEvent
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 
 
 class SQLiteEventStore:
@@ -63,6 +63,41 @@ class SQLiteEventStore:
             except Exception:
                 self._db.rollback()
                 raise
+        if version < 3:
+            self._db.execute("BEGIN IMMEDIATE")
+            try:
+                self._db.execute("""CREATE TABLE resident_intentions (
+                    resident_id TEXT PRIMARY KEY REFERENCES residents(id),
+                    text TEXT NOT NULL,
+                    updated_at TEXT NOT NULL
+                )""")
+                self._db.execute("PRAGMA user_version = 3")
+                self._db.commit()
+            except Exception:
+                self._db.rollback()
+                raise
+
+    def get_intention(self, resident_id: str) -> str | None:
+        row = self._db.execute("SELECT text FROM resident_intentions WHERE resident_id = ?", (resident_id,)).fetchone()
+        return row["text"] if row else None
+
+    def set_intention(self, resident_id: str, text: str) -> WorldEvent:
+        occurred_at = datetime.now(timezone.utc).isoformat()
+        payload = {"intention": text}
+        try:
+            self._db.execute("BEGIN IMMEDIATE")
+            self._db.execute("""INSERT INTO resident_intentions (resident_id, text, updated_at) VALUES (?, ?, ?)
+                              ON CONFLICT(resident_id) DO UPDATE SET text = excluded.text, updated_at = excluded.updated_at""",
+                             (resident_id, text, occurred_at))
+            cursor = self._db.execute(
+                "INSERT INTO world_events (occurred_at, event_type, subject, payload_json) VALUES (?, ?, ?, ?)",
+                (occurred_at, "resident.intention", resident_id, json.dumps(payload, ensure_ascii=False)),
+            )
+            self._db.commit()
+        except Exception:
+            self._db.rollback()
+            raise
+        return WorldEvent(cursor.lastrowid, occurred_at, "resident.intention", resident_id, payload)
 
     def conversation(self, resident_id: str, limit: int = 12) -> list[dict[str, str]]:
         rows = self._db.execute(

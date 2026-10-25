@@ -100,15 +100,16 @@ def conversation_prompt(name: str, state: dict[str, int],
             {"role": "user", "content": user_text}]
 
 
-def action_prompt(name: str, state: dict[str, int],
+def action_prompt(name: str, state: dict[str, int], current_intention: str | None,
                   history: list[dict[str, str]], events: list[dict[str, object]]) -> list[dict[str, str]]:
     system = (
         f"{PERSONA} 你现在是{name}，要自主决定自己接下来做什么。"
         "根据精力、成长、安全、最近的对话和事件选择，不要机械地只追求数值最大。"
         "如果成长已满，学习仍然可以做，但要有具体理由；如果精力低，优先照顾自己。"
-        "只输出一个 JSON 对象：{\"kind\":\"rest|learn|socialize|explore|create\",\"reason\":\"简短中文理由\"}。"
+        "只输出一个 JSON 对象：{\"kind\":\"rest|learn|socialize|explore|create\",\"reason\":\"简短中文理由\",\"intention\":\"现在想持续做的短期事情\"}。"
         "不要输出其他文字。不得选择攻击或声称已执行动作。"
     )
-    context = {"state": state, "recent_conversation": history[-6:], "recent_events": events[-8:]}
+    context = {"state": state, "current_intention": current_intention,
+               "recent_conversation": history[-6:], "recent_events": events[-8:]}
     return [{"role": "system", "content": system},
             {"role": "user", "content": json.dumps(context, ensure_ascii=False)}]

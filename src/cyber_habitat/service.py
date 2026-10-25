@@ -22,13 +22,14 @@ MAX_BODY_BYTES = 16_384
 RESIDENT_ID = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
 
 
-def _resident_json(resident: Resident) -> dict[str, object]:
+def _resident_json(resident: Resident, intention: str | None = None) -> dict[str, object]:
     return {
         "id": resident.id,
         "name": resident.name,
         "energy": resident.energy,
         "safety": resident.safety,
         "growth": resident.growth,
+        "intention": intention,
     }
 
 
@@ -161,7 +162,8 @@ class HabitatRequestHandler(BaseHTTPRequestHandler):
             return
         if parsed.path == "/residents":
             self._send(HTTPStatus.OK, {"residents": [
-                _resident_json(resident) for resident in self.server.director.residents.values()
+                _resident_json(resident, self.server.store.get_intention(resident.id))
+                for resident in self.server.director.residents.values()
             ]})
             return
         if parsed.path.startswith("/residents/"):
@@ -180,7 +182,7 @@ class HabitatRequestHandler(BaseHTTPRequestHandler):
             if resident is None:
                 self._error(HTTPStatus.NOT_FOUND, "resident not found")
                 return
-            self._send(HTTPStatus.OK, {"resident": _resident_json(resident)})
+            self._send(HTTPStatus.OK, {"resident": _resident_json(resident, self.server.store.get_intention(resident.id))})
             return
         if parsed.path == "/events":
             try:
@@ -269,7 +271,8 @@ class HabitatRequestHandler(BaseHTTPRequestHandler):
                 return
             events = self.server.director.tick()
             self._send(HTTPStatus.OK, {
-                "residents": [_resident_json(resident) for resident in self.server.director.residents.values()],
+                "residents": [_resident_json(resident, self.server.store.get_intention(resident.id))
+                              for resident in self.server.director.residents.values()],
                 "events": [_event_json(event) for event in events],
             })
             return
@@ -295,13 +298,17 @@ class HabitatRequestHandler(BaseHTTPRequestHandler):
                                  if event.subject in {"world", resident_id} and event.event_type != "resident.spoke"]
                 prompt = action_prompt(resident.name, {"energy": resident.energy,
                                        "safety": resident.safety, "growth": resident.growth},
+                                       self.server.store.get_intention(resident_id),
                                        self.server.store.conversation(resident_id, 6), recent_events)
                 try:
                     raw = self.server.model.complete(prompt, json_mode=True)
                     proposal = json.loads(raw)
                     kind = ActionKind(proposal["kind"])
                     reason = proposal["reason"]
-                    if set(proposal) != {"kind", "reason"} or not isinstance(reason, str) or not 1 <= len(reason.strip()) <= 140:
+                    intention = proposal["intention"]
+                    if (set(proposal) != {"kind", "reason", "intention"} or not isinstance(reason, str)
+                            or not isinstance(intention, str) or not 1 <= len(reason.strip()) <= 140
+                            or not 1 <= len(intention.strip()) <= 160):
                         raise ValueError("unexpected proposal fields")
                 except ModelUnavailable as exc:
                     self._error(HTTPStatus.BAD_GATEWAY, str(exc))
@@ -310,10 +317,11 @@ class HabitatRequestHandler(BaseHTTPRequestHandler):
                     events.append(self.server.store.append("ai.proposal.rejected", resident_id,
                                                            {"reason": "invalid action proposal"}))
                     continue
+                events.append(self.server.store.set_intention(resident_id, intention.strip()))
                 decision = self.server.director.submit(resident_id, Action(resident_id, kind, reason.strip()))
                 events.extend(decision.events)
             events.append(self.server.store.append("world.ai_tick", "world", {"residents": len([target] if target else self.server.director.residents)}))
-            self._send(HTTPStatus.OK, {"residents": [_resident_json(r) for r in self.server.director.residents.values()],
+            self._send(HTTPStatus.OK, {"residents": [_resident_json(r, self.server.store.get_intention(r.id)) for r in self.server.director.residents.values()],
                                        "events": [_event_json(event) for event in events]})
             return
         if parsed.path == "/residents":
@@ -334,7 +342,7 @@ class HabitatRequestHandler(BaseHTTPRequestHandler):
                 self._error(HTTPStatus.CONFLICT, "resident id already exists")
                 return
             self._send(HTTPStatus.CREATED, {
-                "resident": _resident_json(self.server.director.residents[resident_id]),
+                "resident": _resident_json(self.server.director.residents[resident_id], self.server.store.get_intention(resident_id)),
                 "event": _event_json(event),
             })
             return
@@ -395,7 +403,7 @@ class HabitatRequestHandler(BaseHTTPRequestHandler):
                 return
             self._send(HTTPStatus.OK, {
                 "decision": {"allowed": decision.allowed, "reason": decision.reason},
-                "resident": _resident_json(self.server.director.residents[resident_id]),
+                "resident": _resident_json(self.server.director.residents[resident_id], self.server.store.get_intention(resident_id)),
                 "events": [_event_json(event) for event in decision.events],
             })
             return
