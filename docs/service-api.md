@@ -17,8 +17,8 @@ All JSON request bodies must use `Content-Type: application/json`, be a JSON obj
 | `POST /world/tick` | `{}` | `200` with updated residents and events; `409` when no residents exist |
 | `GET /events?limit=100` | optional limit 1–500 | `200 {"events":[...]}` in event order |
 | `GET /ai/status` | none | `200` with model availability and model name, never a key |
-| `POST /ai/connect` | `{"api_key":"..."}` | `200` connects the official DeepSeek endpoint for this process only; key is never returned or stored in SQLite |
-| `POST /ai/disconnect` | `{}` | `200` clears the in-memory key |
+| `POST /ai/connect` | `{"api_key":"...","remember":true}` | `200` connects the official DeepSeek endpoint; `remember=true` stores the key in ignored local `.env`, never SQLite |
+| `POST /ai/disconnect` | optional `{"forget":true}` | `200` clears the in-memory key; `forget=true` also removes the saved `.env` key |
 | `GET /residents/{id}/conversation` | none | `200` with the latest 30 messages |
 | `POST /residents/{id}/conversation` | `{"message":"你好"}` | `200` with AI answer and `resident.spoke` event; `503` without a model |
 | `POST /world/ai-tick` | `{}` | `200` with AI-proposed actions passed through World Director; `503` without a model |

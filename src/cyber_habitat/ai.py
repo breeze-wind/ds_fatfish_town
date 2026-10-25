@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import os
 from ipaddress import ip_address
+from pathlib import Path
 from urllib.parse import urlsplit
 from urllib.request import HTTPRedirectHandler, Request, build_opener
 
@@ -28,15 +29,23 @@ class _NoRedirect(HTTPRedirectHandler):
 
 class OpenAICompatibleModel:
     def __init__(self, base_url: str | None = None, model: str | None = None,
-                 api_key: str | None = None):
+                 api_key: str | None = None, config_path: str | Path | None = None):
+        self.config_path = Path(config_path) if config_path is not None else Path.cwd() / ".env"
         self.base_url = (base_url or os.environ.get("HABITAT_AI_BASE_URL", "https://api.deepseek.com")).rstrip("/")
         self.model = model or os.environ.get("HABITAT_AI_MODEL", "deepseek-flash")
+        self.key_source = "none"
         if api_key is not None:
             self.api_key = api_key
+            self.key_source = "memory" if api_key else "none"
         else:
             self.api_key = os.environ.get("HABITAT_AI_API_KEY", "")
+            self.key_source = "environment" if self.api_key else "none"
             if not self.api_key and self.base_url == "https://api.deepseek.com":
                 self.api_key = os.environ.get("DEEPSEEK_API_KEY", "")
+                self.key_source = "environment" if self.api_key else "none"
+            if not self.api_key:
+                self.api_key = self._read_saved_key()
+                self.key_source = "local_config" if self.api_key else "none"
         if self.base_url:
             parsed = urlsplit(self.base_url)
             local = parsed.hostname == "localhost"
@@ -50,6 +59,49 @@ class OpenAICompatibleModel:
                 raise ValueError("AI URL must use HTTPS or local loopback HTTP")
             if not parsed.hostname:
                 raise ValueError("AI URL needs a host")
+
+    def _read_saved_key(self) -> str:
+        try:
+            for line in self.config_path.read_text(encoding="utf-8").splitlines():
+                if line.startswith("HABITAT_AI_API_KEY="):
+                    return line.partition("=")[2].strip()
+        except FileNotFoundError:
+            pass
+        return ""
+
+    def remember_api_key(self, key: str) -> None:
+        """Persist only the key in the ignored local .env configuration file."""
+        lines: list[str] = []
+        replaced = False
+        try:
+            lines = self.config_path.read_text(encoding="utf-8").splitlines()
+        except FileNotFoundError:
+            self.config_path.parent.mkdir(parents=True, exist_ok=True)
+        for index, line in enumerate(lines):
+            if line.startswith("HABITAT_AI_API_KEY="):
+                lines[index] = "HABITAT_AI_API_KEY=" + key
+                replaced = True
+        if not replaced:
+            lines.append("HABITAT_AI_API_KEY=" + key)
+        temporary = self.config_path.with_name(self.config_path.name + ".tmp")
+        temporary.write_text("\n".join(lines) + "\n", encoding="utf-8")
+        temporary.replace(self.config_path)
+        try:
+            self.config_path.chmod(0o600)
+        except OSError:
+            pass
+        self.api_key = key
+        self.key_source = "local_config"
+
+    def forget_saved_key(self) -> None:
+        try:
+            lines = self.config_path.read_text(encoding="utf-8").splitlines()
+        except FileNotFoundError:
+            return
+        filtered = [line for line in lines if not line.startswith("HABITAT_AI_API_KEY=")]
+        temporary = self.config_path.with_name(self.config_path.name + ".tmp")
+        temporary.write_text("\n".join(filtered) + ("\n" if filtered else ""), encoding="utf-8")
+        temporary.replace(self.config_path)
 
     @property
     def ready(self) -> bool:

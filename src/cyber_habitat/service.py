@@ -155,7 +155,8 @@ class HabitatRequestHandler(BaseHTTPRequestHandler):
             return
         if parsed.path == "/ai/status":
             self._send(HTTPStatus.OK, {"configured": self.server.model.ready,
-                                       "model": self.server.model.model if self.server.model.ready else None})
+                                       "model": self.server.model.model if self.server.model.ready else None,
+                                       "key_source": self.server.model.key_source})
             return
         if parsed.path == "/autonomy":
             self._send(HTTPStatus.OK, self.server.autonomy.status())
@@ -219,23 +220,39 @@ class HabitatRequestHandler(BaseHTTPRequestHandler):
             if self.server.model.base_url != "https://api.deepseek.com":
                 self._error(HTTPStatus.CONFLICT, "browser key entry supports only the official DeepSeek URL")
                 return
-            if set(body) != {"api_key"} or not isinstance(body.get("api_key"), str):
-                self._error(HTTPStatus.BAD_REQUEST, "body requires api_key")
+            if set(body) - {"api_key", "remember"} or not isinstance(body.get("api_key"), str):
+                self._error(HTTPStatus.BAD_REQUEST, "body requires api_key and accepts remember")
+                return
+            remember = body.get("remember", False)
+            if type(remember) is not bool:
+                self._error(HTTPStatus.BAD_REQUEST, "remember must be a boolean")
                 return
             key = body["api_key"].strip()
             if not 1 <= len(key) <= 512 or any(char.isspace() for char in key):
                 self._error(HTTPStatus.BAD_REQUEST, "invalid API key")
                 return
-            self.server.model.api_key = key
-            self._send(HTTPStatus.OK, {"configured": True, "model": self.server.model.model})
+            if remember:
+                self.server.model.remember_api_key(key)
+            else:
+                self.server.model.api_key = key
+                self.server.model.key_source = "memory"
+            self._send(HTTPStatus.OK, {"configured": True, "model": self.server.model.model,
+                                       "key_source": self.server.model.key_source})
             return
         if parsed.path == "/ai/disconnect":
-            if body:
-                self._error(HTTPStatus.BAD_REQUEST, "disconnect body must be empty")
+            if set(body) - {"forget"}:
+                self._error(HTTPStatus.BAD_REQUEST, "disconnect accepts only forget")
+                return
+            forget = body.get("forget", False)
+            if type(forget) is not bool:
+                self._error(HTTPStatus.BAD_REQUEST, "forget must be a boolean")
                 return
             self.server.model.api_key = ""
+            self.server.model.key_source = "none"
+            if forget:
+                self.server.model.forget_saved_key()
             self.server.autonomy.configure(None, enabled=False)
-            self._send(HTTPStatus.OK, {"configured": False})
+            self._send(HTTPStatus.OK, {"configured": False, "saved_key_removed": forget})
             return
         if parsed.path == "/autonomy":
             if set(body) - {"enabled", "resident_id", "interval_seconds", "max_calls_per_day"} or type(body.get("enabled")) is not bool:

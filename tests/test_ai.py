@@ -1,6 +1,7 @@
 import json
 import sys
 import threading
+import tempfile
 import unittest
 from unittest.mock import patch
 from http.server import BaseHTTPRequestHandler, HTTPServer
@@ -49,6 +50,18 @@ class ModelTests(unittest.TestCase):
         self.assertEqual(default.base_url, "https://api.deepseek.com")
         self.assertEqual(default.model, "deepseek-flash")
         self.assertFalse(default.ready)
+
+    def test_local_config_key_is_loaded_and_can_be_removed(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / ".env"
+            model = OpenAICompatibleModel(api_key="", config_path=path)
+            model.remember_api_key("test-key-only")
+            self.assertIn("HABITAT_AI_API_KEY=test-key-only", path.read_text(encoding="utf-8"))
+            reloaded = OpenAICompatibleModel(config_path=path)
+            self.assertEqual(reloaded.api_key, "test-key-only")
+            self.assertEqual(reloaded.key_source, "local_config")
+            reloaded.forget_saved_key()
+            self.assertNotIn("HABITAT_AI_API_KEY=", path.read_text(encoding="utf-8"))
 
     def test_local_chat_completions_request(self):
         captured = {}

@@ -177,7 +177,9 @@ class ServiceTests(unittest.TestCase):
         self.assertTrue(result["configured"])
         self.assertNotIn("test-only-secret", json.dumps(result))
         self.assertNotIn("test-only-secret", json.dumps(self.request("GET", "/ai/status")[1]))
-        self.assertEqual(self.request("POST", "/ai/disconnect", {})[1], {"configured": False})
+        disconnected = self.request("POST", "/ai/disconnect", {})[1]
+        self.assertFalse(disconnected["configured"])
+        self.assertFalse(disconnected["saved_key_removed"])
         self.assertFalse(self.request("GET", "/ai/status")[1]["configured"])
 
     def test_autonomy_is_opt_in_and_validates_limits(self):

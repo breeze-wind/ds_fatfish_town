@@ -18,7 +18,7 @@
 </style>
 <h1>Cyber Habitat</h1>
 <p class="muted">本地世界预览 · <span id="aiStatus">正在检查 AI 连接…</span></p>
-<section><div class="row"><input id="apiKey" type="password" autocomplete="off" placeholder="在本机输入 DeepSeek API Key" aria-label="DeepSeek API Key"><button id="connect">连接 DeepSeek</button><button id="disconnect">断开</button></div><p class="muted">密钥仅保存在本次服务进程的内存中；重启后需要重新输入。发送消息和 AI 推进时，相关内容会发给 DeepSeek。</p></section>
+<section><div class="row"><input id="apiKey" type="password" autocomplete="off" placeholder="在本机输入 DeepSeek API Key" aria-label="DeepSeek API Key"><label><input id="rememberKey" type="checkbox" checked> 保存到本机配置</label><button id="connect">连接 DeepSeek</button><button id="disconnect">本次断开</button><button id="forgetKey">删除本机保存的密钥</button></div><p class="muted">保存后密钥以明文写入本项目已忽略的 <code>.env</code>，服务重启会自动读取；它不会出现在 Git、页面状态或日志里。发送消息和 AI 推进时，相关内容会发给 DeepSeek。</p></section>
 <section><div class="row"><input id="name" value="Mori" maxlength="80" aria-label="角色名字"><button id="create">让角色进场</button><button id="tick">规则推进一天</button><button id="aiTick" disabled>AI 推进一天</button><button id="refresh">刷新世界</button></div><p id="message" role="status"></p></section>
 <section><h2>自主生活</h2><p class="muted">开启后，居民会定时自己决定动作。服务重启或断开模型时会自动暂停。</p><div class="row"><label>间隔（分钟） <input id="intervalMinutes" type="number" min="1" max="1440" value="30" style="width:75px"></label><label>每天最多 <input id="dailyLimit" type="number" min="1" max="48" value="24" style="width:65px"></label><button id="startLife" disabled>开启自主生活</button><button id="stopLife">暂停</button></div><p id="lifeStatus" class="muted">正在读取状态…</p></section>
 <section><h2>居民</h2><div id="residents" class="cards"></div></section>
@@ -106,7 +106,8 @@ $('send').onclick = async () => {
 $('chatResident').onchange = () => loadConversation().catch(error => $('message').textContent = error.message);
 $('chatMessage').onkeydown = event => { if (event.key === 'Enter') $('send').click(); };
 function showAiStatus(status) {
-  $('aiStatus').textContent = status.configured ? `AI 已连接：${status.model}` : 'AI 未连接；输入密钥后可对话和 AI 推进';
+  const source = status.key_source === 'local_config' ? '（本机配置）' : status.key_source === 'environment' ? '（环境变量）' : '';
+  $('aiStatus').textContent = status.configured ? `AI 已连接：${status.model}${source}` : 'AI 未连接；输入密钥后可对话和 AI 推进';
   $('aiTick').disabled = !status.configured; $('send').disabled = !status.configured;
   $('startLife').disabled = !status.configured;
 }
@@ -130,12 +131,16 @@ $('stopLife').onclick = async () => {
 $('connect').onclick = async () => {
   const key = $('apiKey').value.trim(); if (!key) { $('message').textContent = '请输入 API Key'; return; }
   $('connect').disabled = true;
-  try { showAiStatus(await api('/ai/connect', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({api_key:key})})); $('apiKey').value = ''; $('message').textContent = 'DeepSeek 已连接'; }
+  try { showAiStatus(await api('/ai/connect', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({api_key:key,remember:$('rememberKey').checked})})); $('apiKey').value = ''; $('message').textContent = $('rememberKey').checked ? 'DeepSeek 已连接，密钥已保存到本机配置' : 'DeepSeek 已连接'; }
   catch (error) { $('message').textContent = error.message; }
   finally { $('connect').disabled = false; }
 };
 $('disconnect').onclick = async () => {
-  try { showAiStatus(await api('/ai/disconnect', {method:'POST',headers:{'Content-Type':'application/json'},body:'{}'})); $('message').textContent = '已断开'; await refreshLife(); }
+  try { showAiStatus(await api('/ai/disconnect', {method:'POST',headers:{'Content-Type':'application/json'},body:'{}'})); $('message').textContent = '本次服务已断开；重启时仍会读取已保存密钥'; await refreshLife(); }
+  catch (error) { $('message').textContent = error.message; }
+};
+$('forgetKey').onclick = async () => {
+  try { showAiStatus(await api('/ai/disconnect', {method:'POST',headers:{'Content-Type':'application/json'},body:'{"forget":true}'})); $('message').textContent = '已删除本机保存的密钥并断开'; await refreshLife(); }
   catch (error) { $('message').textContent = error.message; }
 };
 api('/ai/status').then(showAiStatus).catch(error => $('aiStatus').textContent = error.message);
