@@ -17,9 +17,9 @@
 
 - Project directory: `work/cyber-habitat`.
 - Branch: `main`.
-- Recent commits before the current README/handoff work: `28cb079` (NapCat service startup record), `c8ccb97` (OneBot identity/configuration record), `2af592c` (QQ resident ID guidance), `561d7ae` (test ECS DeepSeek defaults/acceptance), `67410be` (QQ bridge deployment profile).
+- Documentation/handoff commit: `649ecfe` (`Document product vision and multi-agent handoff`). Earlier milestones: `28cb079` (NapCat service startup record), `c8ccb97` (OneBot identity/configuration record), `2af592c` (QQ resident ID guidance), `561d7ae` (test ECS DeepSeek defaults/acceptance), `67410be` (QQ bridge deployment profile).
 - `.env` is Git-ignored. Current high-confidence scan of all 19 reachable commits found no `sk-`, `LTAI`, or `AKIA`-style credential strings. Re-run a secret scan before publishing any later diff.
-- The requested target is `https://github.com/breeze-wind/ds_fatfish_town.git` (`breeze-wind/ds_fatfish_town`). GitHub confirms the public repository is readable, but the connected GitHub integration reports `push=false`; the local `origin` should point here, and agents must not push to another account or repository.
+- The requested target is `https://github.com/breeze-wind/ds_fatfish_town.git` (`breeze-wind/ds_fatfish_town`). Local `origin` points here. The GitHub connector can read the public, empty repo but reports `push=false`; local `git fetch origin` was attempted and failed with `Recv failure: Connection was reset`. Do not push elsewhere. The account holder must reconnect the `breeze-wind` account or grant the connected account write access.
 - Once the correct writable GitHub connection is available: fetch and integrate latest `main`, then push this repo's completed commits. If a private credential is needed, the account holder must reconnect or grant repo write permission; never ask for or store a password/token in chat.
 
 ### Verified server state
@@ -34,7 +34,7 @@
 
 ### Current development priorities
 
-1. Finish the product README and collaboration protocol; push after the correct GitHub write identity is connected.
+1. Reconnect the correct GitHub write identity or grant this repo write access, fetch `origin`, then push the local `main` branch to `breeze-wind/ds_fatfish_town`.
 2. Resume the QQ loop after the account holder enables Session Manager: establish local tunnel, configure NapCat HTTP Server/Client with distinct tokens, scan QR with the separate bot account, then run and record a real private-message round trip.
 3. Improve Mori's self-directed life: memory continuity, meaningful action effects, goal progress, action cooldowns, less repetitive dialogue, and controlled world-event cadence.
 4. Run database backup/restore acceptance on the isolated ECS.
@@ -44,7 +44,7 @@
 
 - Historical results: 28 Python tests and 4 DSH Node tests passed before this documentation handoff. No code tests were rerun for the current documentation-only changes.
 - Use `git diff --check` for the current docs, then inspect Git status, secrets, and commit. Do not claim tests were rerun unless they actually were.
-- Next work must update this file with the actual final commit SHA and push result.
+- This handoff documents commit `649ecfe`; a follow-up records the exact GitHub blocker. Push result: not pushed; the connected account has no write permission.
 
 ## Per-task update template
 
