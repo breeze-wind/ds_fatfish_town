@@ -1,4 +1,4 @@
-# Deployment preparation; the container image is intentionally not built or run in Sprint 0.
+# Loopback-only Docker Compose deployment for the Cyber Habitat service.
 services:
   cyber-habitat:
     build: .
@@ -7,8 +7,8 @@ services:
       DATABASE_PATH: ${DATABASE_PATH:-/app/data/world.sqlite3}
       HABITAT_AI_CONFIG_PATH: /app/data/.env
       WORLD_RANDOM_EVENT_CHANCE: ${WORLD_RANDOM_EVENT_CHANCE:-0.15}
-      HABITAT_AI_BASE_URL: ${HABITAT_AI_BASE_URL:-}
-      HABITAT_AI_MODEL: ${HABITAT_AI_MODEL:-}
+      HABITAT_AI_BASE_URL: ${HABITAT_AI_BASE_URL:-https://api.deepseek.com}
+      HABITAT_AI_MODEL: ${HABITAT_AI_MODEL:-deepseek-flash}
       HABITAT_AI_API_KEY: ${HABITAT_AI_API_KEY:-}
       HABITAT_ONEBOT_URL: ${HABITAT_ONEBOT_URL:-http://napcat:5700}
       HABITAT_ONEBOT_ACCESS_TOKEN: ${HABITAT_ONEBOT_ACCESS_TOKEN:-}

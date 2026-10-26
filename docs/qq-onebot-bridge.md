@@ -35,4 +35,4 @@ After both services are running, check `http://127.0.0.1:8765/integrations/onebo
 
 For the Docker deployment, a DeepSeek key may be entered in the browser and saved to the persistent `/app/data/.env` file, or set as `HABITAT_AI_API_KEY` in the host `.env`. Never commit the host `.env` or share tokens in chat.
 
-This describes deployment configuration only. It does not install NapCat, log into QQ, or deploy anything to a server automatically.
+The base Cyber Habitat service is deployed separately on the isolated test ECS. The optional NapCat profile is not yet running, and this document does not log into QQ automatically. Complete the protected NapCat setup and phone-message round trip before treating QQ mobile interaction as accepted.
