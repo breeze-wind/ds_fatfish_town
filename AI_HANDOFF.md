@@ -16,11 +16,12 @@
 ### Current local repository
 
 - Project directory: `work/cyber-habitat`.
-- Branch: `main`.
+- Branch: `main`, tracking `origin/main`.
 - Documentation/handoff commit: `649ecfe` (`Document product vision and multi-agent handoff`). Earlier milestones: `28cb079` (NapCat service startup record), `c8ccb97` (OneBot identity/configuration record), `2af592c` (QQ resident ID guidance), `561d7ae` (test ECS DeepSeek defaults/acceptance), `67410be` (QQ bridge deployment profile).
-- `.env` is Git-ignored. Current high-confidence scan of all 19 reachable commits found no `sk-`, `LTAI`, or `AKIA`-style credential strings. Re-run a secret scan before publishing any later diff.
-- The requested target is `https://github.com/breeze-wind/ds_fatfish_town.git` (`breeze-wind/ds_fatfish_town`). Local `origin` points here. The GitHub connector can read the public, empty repo but reports `push=false`; local `git fetch origin` was attempted and failed with `Recv failure: Connection was reset`. Do not push elsewhere. The account holder must reconnect the `breeze-wind` account or grant the connected account write access.
-- Once the correct writable GitHub connection is available: fetch and integrate latest `main`, then push this repo's completed commits. If a private credential is needed, the account holder must reconnect or grant repo write permission; never ask for or store a password/token in chat.
+- `.env` is Git-ignored and untracked. Re-run a secret scan (`git grep -E 'sk-|LTAI|AKIA|gh[pousr]_'` and `git log -p --all`) before publishing any later diff; the scan on 2026-10-26 found no credential strings in the tracked tree or history.
+- The requested target is `https://github.com/breeze-wind/ds_fatfish_town.git` (`breeze-wind/ds_fatfish_town`). Local `origin` points here. **Push now works:** on 2026-10-26 the entire `main` history (21 commits, HEAD `aa52d99`) was pushed, `main` was set to track `origin/main`, `git ls-remote origin` returned exactly the local `HEAD` SHA for both `HEAD` and `refs/heads/main`, and `GET https://api.github.com/repos/breeze-wind/ds_fatfish_town` reports `private: false`, `default_branch: main`, `pushed_at: 2026-10-26T12:27:06Z`. The older "connected account has no write permission" blocker is resolved and obsolete.
+- Network note for this Windows host: plain `git fetch`/`git push` to `github.com` failed with `Failed to connect to github.com port 443 after ~21s: Could not connect to server` while `curl https://github.com/` and `https://api.github.com/` succeeded. The connection establishes over TLS and then stalls on the negotiated HTTP/2 stream; the repo-local, untracked setting `git config http.version HTTP/1.1` makes fetch and push succeed. Re-apply it after a fresh clone. Never ask for or store a password/token in chat or tracked files.
+- Continue pushing to that repository only, and verify `git ls-remote origin` against local `HEAD` after each push.
 
 ### Verified server state
 
@@ -34,7 +35,7 @@
 
 ### Current development priorities
 
-1. Reconnect the correct GitHub write identity or grant this repo write access, fetch `origin`, then push the local `main` branch to `breeze-wind/ds_fatfish_town`.
+1. ~~Push the local `main` branch to `breeze-wind/ds_fatfish_town`~~ — done 2026-10-26 (21 commits, remote `main` matches local `HEAD`). Keep committing and pushing each finished slice.
 2. Resume the QQ loop after the account holder enables Session Manager: establish local tunnel, configure NapCat HTTP Server/Client with distinct tokens, scan QR with the separate bot account, then run and record a real private-message round trip.
 3. Improve Mori's self-directed life: memory continuity, meaningful action effects, goal progress, action cooldowns, less repetitive dialogue, and controlled world-event cadence.
 4. Run database backup/restore acceptance on the isolated ECS.
@@ -42,9 +43,9 @@
 
 ### Local verification boundary
 
-- Historical results: 28 Python tests and 4 DSH Node tests passed before this documentation handoff. No code tests were rerun for the current documentation-only changes.
-- Use `git diff --check` for the current docs, then inspect Git status, secrets, and commit. Do not claim tests were rerun unless they actually were.
-- This handoff documents commit `649ecfe`; a follow-up records the exact GitHub blocker. Push result: not pushed; the connected account has no write permission.
+- Verified on 2026-10-26 in this working tree: `python -m unittest discover -s tests -v` ran **28 tests, OK** (5 `test_ai`, 1 `test_autonomy`, 3 `test_onebot`, 12 `test_service`, 7 `test_world_loop`), and `node tests/test_dsh_plugin.mjs` reported **4 pass, 0 fail**. `pytest` is not installed on this machine, so the standard-library runner is the supported path; `tests/__init__.py` was added so plain `unittest discover -s tests` works as the README documents.
+- Use `git diff --check` before a commit, then inspect `git status`, secrets, and the diff. Do not claim tests were rerun unless they actually were.
+- Push evidence for this handoff: commit `aa52d99` (`Record GitHub push permission blocker`) plus the follow-up documentation commit at the tip of `main`; both are on `origin/main` and `git ls-remote origin` matches local `HEAD`.
 
 ## Per-task update template
 

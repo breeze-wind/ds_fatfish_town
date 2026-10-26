@@ -102,7 +102,7 @@ Events are stored in the selected SQLite database. The service accepts loopback 
 - `docs/`: architecture decision, reuse audit, and core interface contract.
 - `integrations/dsh-plugin/`: external DSH bundle for resident/event queries and action submission.
 - `compose.yaml` and `Dockerfile`: built and health-checked on the isolated test ECS; see the server acceptance record for the exact boundary.
-- Git: local repository on `main`; use small commits at completed milestones. The requested target is `https://github.com/breeze-wind/ds_fatfish_town.git`; the repository is readable but the currently connected GitHub integration reports no push permission. Do not push to another account or repository.
+- Git: local repository on `main`, tracking `origin/main` at `https://github.com/breeze-wind/ds_fatfish_town.git`; use small commits at completed milestones and push to that repository only. The first successful push (all 21 commits) landed on 2026-10-26. On this Windows machine plain `git push`/`fetch` to `github.com` hung because the server negotiates HTTP/2 while the connection stalls; the repo-local setting `git config http.version HTTP/1.1` makes fetches and pushes work. Keep it local, not in tracked files.
 
 ## Product north star and user requirements
 
@@ -125,7 +125,7 @@ The environment may produce visitors, artifacts, weather, and other events, but 
 - **DSH is the user's desktop GUI/source project:** the user has the DSH graphical application and remembers compiling its source. Inspect/reuse what is already installed; do not waste time downloading another duplicate or treat the GUI as a headless simulation engine. The DSH bundle is optional.
 - **Linux is the server OS:** develop and verify locally first, then deploy through Docker Compose to an isolated Linux test ECS. Do not write code directly on production.
 - **Work to closure:** do not stop at a plan or halfway implementation. Continue until the current slice runs and has evidence, unless a real account/login, cost, security, or production boundary requires the user's action. Report the exact dependency and preserve a resumable handoff.
-- **GitHub handoff:** the user intends to send this repository to the `breezewind` GitHub account and have other AI agents continue. The connected GitHub identity is currently different; reconnect the correct account before pushing.
+- **GitHub handoff:** the user intends to send this repository to the `breeze-wind` GitHub account and have other AI agents continue. Push access to `breeze-wind/ds_fatfish_town` now works with the stored Git credential; continue committing and pushing there, and verify the remote after each push.
 
 ### What counts as a complete resident action
 
