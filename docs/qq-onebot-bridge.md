@@ -9,7 +9,7 @@ The NapCat service is optional and starts only with the `qq` profile. The host p
 1. Copy `.env.example` to `.env` on the Linux host. Replace the three token placeholders with distinct random values. Set `HABITAT_ONEBOT_TARGET_USER_ID` to the QQ number that will message the bot from the phone. Keep `.env` private and out of Git.
 2. From the project directory, start the application and NapCat with `docker compose -f compose.yaml -f compose.qq.yaml --profile qq up -d --build`.
 3. Forward both local interfaces from your computer: `ssh -L 8765:127.0.0.1:8765 -L 6099:127.0.0.1:6099 <linux-user>@<server-address>`. While that SSH connection is open, visit `http://127.0.0.1:6099` and authenticate with `NAPCAT_WEBUI_TOKEN`; the Cyber Habitat page is at `http://127.0.0.1:8765`.
-4. Log the dedicated bot QQ account into NapCat. The phone's QQ account must be able to send the bot a private message.
+4. Log the dedicated bot QQ account into NapCat. The phone's QQ account must be able to send the bot a private message. If `HABITAT_ONEBOT_RESIDENT_ID` is set, it must match the resident's full current ID; leave it blank to auto-select when there is exactly one resident.
 
 NapCat's current Linux guide documents the `mlikiowa/napcat-docker` image, WebUI port 6099, and persistent config/QQ data volumes. The optional Compose overlay follows that layout. Set `NAPCAT_IMAGE` to a specific tested tag before long-running use instead of relying on `latest`.
 

@@ -18,7 +18,8 @@ Target: isolated Alibaba Cloud Linux 3 test directory `/opt/cyber-habitat-test-2
 - This is an isolated test deployment, not a production migration.
 - The service and optional NapCat WebUI bind to host loopback. The service has no authentication and is not exposed to the public internet.
 - The resident is present and can talk or take AI turns. Timed autonomy remains opt-in, so no recurring model calls are scheduled.
-- The QQ/NapCat bridge has not been started or logged into. Phone QQ interaction still needs a separate bot QQ account login, the phone sender's QQ number, and a protected way for the user to reach NapCat WebUI. The OneBot port must remain private to the Compose network.
+- The QQ/NapCat bridge has not been started or logged into. Its OneBot status is `configured=false`; the bridge tokens and WebUI token exist, but the phone sender's QQ number is missing. The current server config's resident ID is `mori`, while the created Mori resident uses the full ID above; this must be corrected before enabling OneBot. The NapCat image is not yet cached.
+- Phone QQ interaction still needs a separate bot QQ account login and a protected way for the user to reach NapCat WebUI. The OneBot port must remain private to the Compose network.
 
 ## Remaining acceptance
 
