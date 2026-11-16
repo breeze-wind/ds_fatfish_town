@@ -2,6 +2,15 @@
 
 > Update this file before ending every meaningful AI work unit. It is the short, current-state entry point for the next AI; keep durable product decisions in `README.md` and detailed evidence in `docs/`.
 
+## Product priority update — 2026-11-17
+
+- User clarified that routine autonomous activity can wait. Prioritize a vivid, human-like Android desk pet and chatbot with polished UI. Use `docs/android-pet-plan.md` as the current plan; older autonomy-first/PWA-first/QQ-first statements below are historical.
+- Identified the TapTap reference `小鲸鱼：会记住你的桌宠` and matching public repository `yuan10-06/xiaojingyu`. The repo has MIT code, Android source, and a GitHub release APK. Its own asset notices do not grant blanket redistribution rights for animations/Live2D/fonts. Source and exact audit links are recorded in the current plan.
+- This work unit changes documentation only: README, product-direction history, new Android plan, and this handoff. No application code, tests, server, or account settings were changed. `git fetch --all --prune` succeeded; `main` was one local commit ahead of `origin/main` before these edits.
+- Next implementation step: file-level audit of reference Android overlay/animation code, then a native Android shell with Mori's main view, chat, and a small state-linked animation set. Keep existing server loopback-only until authenticated HTTPS access is implemented.
+- GitHub publishing still needs a credential/account with write access to `breeze-wind/ds_fatfish_town`; the last connected GitHub app account had only pull permission.
+- Local commit for this plan: current `HEAD` on `main`. `git diff --check` passed and the changed documentation matched no high-confidence credential pattern. No tests were run because behavior/code did not change. `git push origin main` was attempted and returned `could not read Username` with interaction disabled; local `main` is two commits ahead of `origin/main`.
+
 ## Direction update — 2026-11-17
 
 - The user reviewed the prototype and approved a dedicated Cyber Habitat app as the primary phone experience. QQ is now an optional later adapter. Read `docs/product-direction-2026-11-17.md` before planning new work; it supersedes the October QQ-first priority below.

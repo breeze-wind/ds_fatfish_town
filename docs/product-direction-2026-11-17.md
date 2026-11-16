@@ -2,6 +2,8 @@
 
 Date: 2026-11-17. This records the user's direction after reviewing the October prototype. It supersedes the earlier priority to finish the QQ bridge first. It does not claim the app or animations already exist.
 
+> Later on 2026-11-17 the user clarified that routine autonomous activity can wait. The current priority is a lively, human-like desk pet and chatbot with a beautiful interface. See `android-pet-plan.md` for the canonical plan; the autonomy and PWA-first goals below are retained as historical context.
+
 ## What the user has confirmed
 
 - Cyber Habitat should feel like a persistent world with an AI resident who makes most ordinary decisions independently. Complete the first resident before adding many residents.

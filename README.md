@@ -2,9 +2,9 @@
 
 Cyber Habitat is a local-first simulation core for a persistent digital world. The World Director is the single authority for action policy, scheduled events, and state changes. Sprint 0 has a working local loop: a resident submits an action, deterministic safety rules allow or block it, the mock runtime changes state, and SQLite records the outcome.
 
-## Current product direction (2026-11-17)
+## Current product direction (updated 2026-11-17)
 
-The user's primary phone experience should be a Cyber Habitat app centered on a visibly living AI resident. Start with a mobile-first, installable web app backed by the existing service, then decide whether device-specific features warrant a native Android client. The resident's animation should reflect actual persisted activities and emotional context; an attractive pet sprite alone does not establish autonomous behavior. QQ is a deferred, optional channel, not the next product milestone. See [the product-direction record](docs/product-direction-2026-11-17.md) for confirmed requirements, open design questions, and acceptance criteria. Older QQ priority statements below record the previous plan and are superseded by this decision.
+The primary product is now a polished Android desk pet and chat companion. Mori should feel vivid and human through conversation, memory, expression, motion, and restraint. Routine autonomous world activity is optional and no longer a first-release gate. A native Android shell is needed for a pet that can float above other apps; the existing web UI remains a development surface. QQ is a deferred optional channel. See [the current Android pet plan](docs/android-pet-plan.md), including the open-source reference and its asset-license boundary. Earlier autonomy-first and QQ-first roadmap sections below are historical and superseded where they conflict with this plan.
 
 ## Quick start
 
