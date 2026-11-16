@@ -2,6 +2,10 @@
 
 Cyber Habitat is a local-first simulation core for a persistent digital world. The World Director is the single authority for action policy, scheduled events, and state changes. Sprint 0 has a working local loop: a resident submits an action, deterministic safety rules allow or block it, the mock runtime changes state, and SQLite records the outcome.
 
+## Current product direction (2026-11-17)
+
+The user's primary phone experience should be a Cyber Habitat app centered on a visibly living AI resident. Start with a mobile-first, installable web app backed by the existing service, then decide whether device-specific features warrant a native Android client. The resident's animation should reflect actual persisted activities and emotional context; an attractive pet sprite alone does not establish autonomous behavior. QQ is a deferred, optional channel, not the next product milestone. See [the product-direction record](docs/product-direction-2026-11-17.md) for confirmed requirements, open design questions, and acceptance criteria. Older QQ priority statements below record the previous plan and are superseded by this decision.
+
 ## Quick start
 
 Requires Python 3.11+; the core uses only the standard library.
@@ -121,7 +125,7 @@ The environment may produce visitors, artifacts, weather, and other events, but 
 - **Autonomy first:** Mori should make most day-to-day decisions himself. Chat is an available relationship channel, not a command loop.
 - **First resident first:** finish one relatively complete AI resident before multiplying residents or adding broad world systems.
 - **DeepSeek direct connection:** the user agreed that explicit Send/AI Advance actions may send the relevant user message, recent chat, and resident state to DeepSeek. Keep model calls visible and bounded. Timed autonomy stays disabled by default and is opt-in.
-- **Phone sync matters:** the user specifically asked to prioritize QQ or another phone-synchronized channel. Current path is QQ private messages through NapCat and OneBot v11, using a separate bot account.
+- **Phone experience matters:** the user now prefers a dedicated Cyber Habitat app as the primary mobile experience. QQ private messages through NapCat and OneBot v11 remain an optional later integration.
 - **DSH is the user's desktop GUI/source project:** the user has the DSH graphical application and remembers compiling its source. Inspect/reuse what is already installed; do not waste time downloading another duplicate or treat the GUI as a headless simulation engine. The DSH bundle is optional.
 - **Linux is the server OS:** develop and verify locally first, then deploy through Docker Compose to an isolated Linux test ECS. Do not write code directly on production.
 - **Work to closure:** do not stop at a plan or halfway implementation. Continue until the current slice runs and has evidence, unless a real account/login, cost, security, or production boundary requires the user's action. Report the exact dependency and preserve a resumable handoff.
@@ -142,7 +146,7 @@ If any link is missing, document it as incomplete. Do not equate an `action.appl
 
 ## Expanded product roadmap and acceptance gates
 
-Roadmap order reflects the user's priority: first Mori's independent life, then the phone interaction loop that lets the user keep contact from QQ. Work should remain in small, testable commits; these gates can overlap only when doing so does not delay the first usable resident.
+Roadmap order is now Mori's independent life and the dedicated mobile app, followed by optional message channels. The QQ section below is retained as historical integration detail; it is not the next milestone.
 
 ### A. First resident quality: Mori can live without prompts
 
@@ -155,7 +159,7 @@ Roadmap order reflects the user's priority: first Mori's independent life, then 
 - Add quality checks for action fit, state usefulness, persona consistency, repetition, and whether dialogue acknowledges recent context.
 - Acceptance: with no incoming messages, Mori independently makes a varied series of state-appropriate choices over multiple turns; every actual action has a durable effect; repeated turns do not flood the event feed; after restart Mori recalls relevant prior context.
 
-### B. Phone QQ: same Mori, same memory, private conversation
+### B. Deferred optional channel: phone QQ
 
 - Complete the missing Session Manager account setting and use an encrypted local port forward to the NapCat WebUI; keep host binding at `127.0.0.1`.
 - Log in to NapCat only by QR using the dedicated bot account. Never place its password in `.env`, scripts, prompts, logs, handoff, or GitHub.

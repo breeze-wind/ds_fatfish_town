@@ -2,6 +2,15 @@
 
 > Update this file before ending every meaningful AI work unit. It is the short, current-state entry point for the next AI; keep durable product decisions in `README.md` and detailed evidence in `docs/`.
 
+## Direction update — 2026-11-17
+
+- The user reviewed the prototype and approved a dedicated Cyber Habitat app as the primary phone experience. QQ is now an optional later adapter. Read `docs/product-direction-2026-11-17.md` before planning new work; it supersedes the October QQ-first priority below.
+- The user found promising desktop-pet animation material, but has not supplied files or licensing details. Build an animation-state contract and mobile view with placeholders first; inspect the real material before importing it.
+- Current source review found only the existing static `habitat.html` UI, server API, SQLite core, and prepared but unverified QQ bridge. No new app code or runtime test was performed in this documentation update.
+- Repo sync: `git fetch --all --prune` succeeded on 2026-11-17; local `main` was clean and matched `origin/main` at `b98b648` before editing.
+- The direction update was committed locally at the current `HEAD`. Push was attempted, but Git's stored GitHub credential is currently unavailable (`could not read Username` with noninteractive prompt disabled). The connected GitHub app is authenticated as `bding5746-del` and reports read-only access to `breeze-wind/ds_fatfish_town` (`push=false`). Local `main` is one commit ahead of `origin/main`; do not claim this update is on GitHub until the correct account or write access is restored and the remote head is verified.
+- Next action: implement the first mobile home view and animation-state binding, then work through authenticated HTTPS phone access and actual device acceptance. Improve Mori's behavior alongside the UI. Ask the user for the desktop-pet asset/link and whether they mean in-app animation or system-level pet overlay.
+
 ## Snapshot — 2026-10-26
 
 ### User goal and fixed decisions
