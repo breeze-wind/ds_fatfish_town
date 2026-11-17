@@ -52,4 +52,4 @@ Documentation updates and ordinary additive work should still be listed in `AI_H
 - Compatibility or migration notes: v1–v3 SQLite databases migrate to v4 on startup; no key or external data is moved. Delete is not secure erasure of old chat or provider copies.
 - Validation performed and result: Python tests and browser UI smoke-test results are in the current `AI_HANDOFF.md`.
 - Original owner notified / next owner: original owner unknown; next AI should implement edit/correction and provenance-aware candidate memories only after user feedback.
-- Commit: see the saved-memory code milestone in `AI_HANDOFF.md`.
+- Commit: `e6fabb4` for the saved-memory code and initial notice; follow-up handoff commit records final delivery status.
