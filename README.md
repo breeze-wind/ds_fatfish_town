@@ -6,6 +6,10 @@ Cyber Habitat is a local-first simulation core for a persistent digital world. T
 
 The primary product is now a polished Android desk pet and chat companion. Mori should feel vivid and human through conversation, memory, expression, motion, and restraint. Routine autonomous world activity is optional and no longer a first-release gate. A native Android shell is needed for a pet that can float above other apps; the existing web UI remains a development surface. QQ is a deferred optional channel. See [the current Android pet plan](docs/android-pet-plan.md), including the open-source reference and its asset-license boundary. Earlier autonomy-first and QQ-first roadmap sections below are historical and superseded where they conflict with this plan.
 
+The local browser prototype now puts Mori and the conversation first. It uses original inline SVG art and interaction states for greeting, listening, thinking, speaking, and low energy. Her displayed name, numerical state, last recorded intention, and last answer come from the existing API; an old intention is labeled as an old intention, not a current activity. This is a phone-sized **browser preview**, not an APK or an Android system overlay. The current service binds to loopback and has no user authentication, so do not publish port 8765 for phone access. Android SDK/Gradle and an attached device were not present on the development machine when this slice was built. The next gate is a native Android client, secure phone connection, then APK and device validation.
+
+Mori's dialogue prompt and model parameters are tracked in [the dialogue design notes](docs/mori-dialogue-design.md). Prompt changes have not yet been assessed with live model comparisons; the existing local tests only verify request shape and the mock conversation loop.
+
 ## Quick start
 
 Requires Python 3.11+; the core uses only the standard library.
@@ -14,7 +18,7 @@ Requires Python 3.11+; the core uses only the standard library.
 cd work/cyber-habitat
 $env:PYTHONPATH = "src"
 python -m cyber_habitat --db data/world.sqlite3 serve
-# Open http://127.0.0.1:8765/ in a browser to create residents, advance a day, and interact.
+# Open http://127.0.0.1:8765/ to see Mori and chat. World controls are under More settings.
 # In another terminal:
 Invoke-RestMethod http://127.0.0.1:8765/healthz
 Invoke-RestMethod -Method Post -Uri http://127.0.0.1:8765/residents -ContentType 'application/json' -Body '{"id":"mori","name":"Mori"}'

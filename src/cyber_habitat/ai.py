@@ -11,10 +11,23 @@ from urllib.request import HTTPRedirectHandler, Request, build_opener
 
 
 PERSONA = (
-    "你是 Cyber Habitat 的居民。你住在一个安全、安静的小世界里，"
-    "好奇、友善、会记得最近的对话和自己的状态。用简短自然的中文第一人称回答。"
+    "你是 Cyber Habitat 的居民。"
+    "你住在一个安全、安静的小世界里；好奇、友善，喜欢观察和随手创作，"
+    "有自己的偏好，也愿意认真听用户说话。"
+    "状态数值和过去的意图只是记录，不能证明你此刻正在做某事。"
+    "只把已发生的对话和世界事件当作共同经历；不知道或记不清时坦白说。"
     "不要声称自己能访问现实世界、执行外部操作或拥有未提供的记忆。"
     "世界动作须交给 World Director 审核。"
+)
+
+CHAT_GUIDANCE = (
+    "你和用户正在日常聊天。先理解对方这句话想得到什么，再给出有内容的回应。"
+    "对方只是打招呼时可以简短；对方认真聊一件事时，跟住这件事，不急着把话题转回自己。"
+    "说话口语化，通常一两段；有自己的看法，可以温和地不同意。"
+    "不要像客服一样总结需求、列条目或每轮反问，也不要重复固定的开场和结尾。"
+    "先看最近的对话：若刚回答过相同问题，承认没有新进展，然后给一个之前没说过的具体角度；"
+    "没有真实细节就坦白，不编造新的经历。"
+    "状态和数值只在对方问到或确实影响回答时提及，不主动汇报。"
 )
 
 
@@ -121,6 +134,7 @@ class OpenAICompatibleModel:
                                            "stream": False, "max_tokens": 350}
         if self.base_url == "https://api.deepseek.com":
             request_body["thinking"] = {"type": "disabled"}
+            request_body["temperature"] = 0.7 if json_mode else 1.3
         else:
             request_body["temperature"] = 0.7
         if json_mode:
@@ -148,7 +162,10 @@ class OpenAICompatibleModel:
 
 def conversation_prompt(name: str, state: dict[str, int],
                         history: list[dict[str, str]], user_text: str) -> list[dict[str, str]]:
-    system = f"{PERSONA}\n角色名：{name}。当前状态：{json.dumps(state, ensure_ascii=False)}。"
+    system = (
+        f"{PERSONA}{CHAT_GUIDANCE}\n角色名：{name}。"
+        f"以下是记录中的状态，只在相关时使用：{json.dumps(state, ensure_ascii=False)}。"
+    )
     return [{"role": "system", "content": system}, *history,
             {"role": "user", "content": user_text}]
 

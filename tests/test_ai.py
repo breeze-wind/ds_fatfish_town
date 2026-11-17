@@ -9,7 +9,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from cyber_habitat.ai import ModelUnavailable, OpenAICompatibleModel
+from cyber_habitat.ai import ModelUnavailable, OpenAICompatibleModel, conversation_prompt
 
 
 class ModelTests(unittest.TestCase):
@@ -39,7 +39,36 @@ class ModelTests(unittest.TestCase):
                              '{"kind":"learn"}')
         self.assertEqual(captured["url"], "https://api.deepseek.com/chat/completions")
         self.assertEqual(captured["body"]["thinking"], {"type": "disabled"})
+        self.assertEqual(captured["body"]["temperature"], 0.7)
         self.assertEqual(captured["body"]["response_format"], {"type": "json_object"})
+
+    def test_chat_uses_conversation_temperature_and_recent_history(self):
+        captured = {}
+
+        class Response:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *_args):
+                return False
+
+            def read(self, _limit):
+                return json.dumps({"choices": [{"message": {"content": "你说的创作我记得。"}}]}).encode()
+
+        class Opener:
+            def open(self, request, timeout):
+                captured["body"] = json.loads(request.data)
+                return Response()
+
+        history = [{"role": "user", "content": "你喜欢创作吗？"},
+                   {"role": "assistant", "content": "喜欢随手记些片段。"}]
+        prompt = conversation_prompt("Mori", {"energy": 53, "safety": 70, "growth": 20},
+                                     history, "你刚才说什么？")
+        with patch("cyber_habitat.ai.build_opener", return_value=Opener()):
+            model = OpenAICompatibleModel("https://api.deepseek.com", "deepseek-flash", "test-only")
+            self.assertTrue(model.complete(prompt))
+        self.assertEqual(captured["body"]["temperature"], 1.3)
+        self.assertEqual(captured["body"]["messages"][-3:], [*history, {"role": "user", "content": "你刚才说什么？"}])
 
     def test_configuration_rejects_insecure_remote_url(self):
         with self.assertRaises(ValueError):
