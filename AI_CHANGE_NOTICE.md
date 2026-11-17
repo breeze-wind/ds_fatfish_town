@@ -31,3 +31,14 @@ Documentation updates and ordinary additive work should still be listed in `AI_H
 - Validation performed and result: 390×844 browser inspection; simulated UI message and page reload with a fake model and temporary SQLite database passed; Python suite result is recorded in `AI_HANDOFF.md`.
 - Original owner notified / next owner: original owner unknown; next AI should read this ledger and continue native Android client and secure access.
 - Commit: `e25884a` for the changed code and initial notice; follow-up handoff commit records the exact delivery state.
+
+### 2026-11-17 — Ground Mori's activity replies in recorded actions
+
+- Previous owner/source: `unknown` for the original service, store, and prompt code; the previous prompt edit was `e25884a` by this AI.
+- Changed files: `src/cyber_habitat/ai.py`, `src/cyber_habitat/service.py`, `src/cyber_habitat/store.py`, and corresponding tests.
+- Why this changed: real DeepSeek turns still invented unrecorded locations and actions and handled repeated activity questions mechanically.
+- Behavior/API/data effects: chat prompt now includes only this resident's approved past actions and explicit absence of real-time world activity; repeated activity questions receive turn-specific grounding and anti-repetition guidance. No HTTP or SQLite schema change. The new store query is read-only.
+- Compatibility or migration notes: no migration; old model-written chat remains in history as utterances, not verified world facts.
+- Validation performed and result: 32 Python tests passed. Nine real-model calls on temporary test residents informed the revision; final three-turn sample avoided unrecorded physical actions and repeated question endings, but broader quality acceptance is still pending.
+- Original owner notified / next owner: original owner unknown; next AI should read this ledger, compare multiple live runs, and obtain user feedback on tone.
+- Commit: see the current grounded-dialogue code milestone in `AI_HANDOFF.md`.

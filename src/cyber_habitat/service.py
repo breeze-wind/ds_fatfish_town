@@ -75,7 +75,8 @@ class HabitatHTTPServer(HTTPServer):
         prompt = conversation_prompt(resident.name,
                                      {"energy": resident.energy, "safety": resident.safety,
                                       "growth": resident.growth},
-                                     self.store.conversation(resident_id), message)
+                                     self.store.conversation(resident_id), message,
+                                     self.store.recent_actions(resident_id))
         answer = self.model.complete(prompt)
         return answer, self.store.record_exchange(resident_id, message, answer)
 

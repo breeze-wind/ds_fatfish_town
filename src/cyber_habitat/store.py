@@ -106,6 +106,15 @@ class SQLiteEventStore:
         ).fetchall()
         return [{"role": row["role"], "content": row["content"]} for row in reversed(rows)]
 
+    def recent_actions(self, resident_id: str, limit: int = 5) -> list[dict[str, str]]:
+        rows = self._db.execute(
+            "SELECT occurred_at, payload_json FROM world_events "
+            "WHERE subject = ? AND event_type = 'action.applied' ORDER BY id DESC LIMIT ?",
+            (resident_id, limit),
+        ).fetchall()
+        return [{"action": json.loads(row["payload_json"])["action"],
+                 "occurred_at": row["occurred_at"]} for row in reversed(rows)]
+
     def record_exchange(self, resident_id: str, user_text: str, answer: str) -> WorldEvent:
         occurred_at = datetime.now(timezone.utc).isoformat()
         payload = {"message": answer}

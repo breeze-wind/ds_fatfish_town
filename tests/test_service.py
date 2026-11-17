@@ -151,6 +151,26 @@ class ServiceTests(unittest.TestCase):
         self.assertEqual(len(self.request("GET", "/residents/mori/conversation")[1]["messages"]), 4)
         self.assertEqual(self.request("GET", "/residents/mori")[1]["resident"]["intention"], "记录一件今天学到的事")
 
+    def test_chat_context_uses_only_applied_resident_actions(self):
+        class CapturingModel:
+            ready = True
+            model = "fake"
+            prompt = None
+
+            def complete(self, messages, *, json_mode=False):
+                self.prompt = messages
+                return "我还在想下一句。"
+
+        model = CapturingModel()
+        self.server.model = model
+        self.request("POST", "/residents", {"id": "mori", "name": "Mori"})
+        self.request("POST", "/residents/mori/actions", {"kind": "create"})
+        self.request("POST", "/residents/mori/actions", {"kind": "attack"})
+        self.request("POST", "/residents/mori/conversation", {"message": "你做过什么？"})
+        system = model.prompt[0]["content"]
+        self.assertIn('"action": "create"', system)
+        self.assertNotIn('"action": "attack"', system)
+
     def test_ai_harmful_proposal_is_blocked(self):
         self.server.model = type("BadModel", (), {
             "ready": True, "model": "fake", "complete": lambda _self, _messages, **_kwargs: '{"kind":"attack","reason":"test","intention":"bad"}',

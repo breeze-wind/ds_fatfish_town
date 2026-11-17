@@ -63,12 +63,24 @@ class ModelTests(unittest.TestCase):
         history = [{"role": "user", "content": "你喜欢创作吗？"},
                    {"role": "assistant", "content": "喜欢随手记些片段。"}]
         prompt = conversation_prompt("Mori", {"energy": 53, "safety": 70, "growth": 20},
-                                     history, "你刚才说什么？")
+                                     history, "你刚才说什么？",
+                                     [{"action": "create", "occurred_at": "2026-11-17T00:00:00+00:00"}])
         with patch("cyber_habitat.ai.build_opener", return_value=Opener()):
             model = OpenAICompatibleModel("https://api.deepseek.com", "deepseek-flash", "test-only")
             self.assertTrue(model.complete(prompt))
         self.assertEqual(captured["body"]["temperature"], 1.3)
         self.assertEqual(captured["body"]["messages"][-3:], [*history, {"role": "user", "content": "你刚才说什么？"}])
+        self.assertIn('"action": "create"', captured["body"]["messages"][0]["content"])
+
+    def test_repeated_activity_question_gets_grounded_turn_guidance(self):
+        history = [{"role": "user", "content": "干嘛呢？"},
+                   {"role": "assistant", "content": "我在这里和你聊天。"}]
+        prompt = conversation_prompt("Mori", {"energy": 70}, history, "干嘛呢", [])
+        system = prompt[0]["content"]
+        self.assertIn("没有任何已记录的世界动作", system)
+        self.assertIn("已出现1次", system)
+        self.assertIn("不要用问句结尾", system)
+        self.assertEqual(prompt[-3:], [*history, {"role": "user", "content": "干嘛呢"}])
 
     def test_configuration_rejects_insecure_remote_url(self):
         with self.assertRaises(ValueError):

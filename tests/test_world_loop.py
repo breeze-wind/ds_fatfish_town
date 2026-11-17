@@ -32,6 +32,15 @@ class WorldLoopTests(unittest.TestCase):
         events = self.store.list_events()
         self.assertEqual([event.event_type for event in events], ["resident.created", "action.applied"])
 
+    def test_verified_action_context_excludes_other_residents_and_blocked_actions(self):
+        self.director.add_resident(Resident("r2", "Other"))
+        self.director.submit("r1", Action("r1", ActionKind.CREATE))
+        self.director.submit("r1", Action("r1", ActionKind.ATTACK))
+        self.director.submit("r2", Action("r2", ActionKind.EXPLORE))
+        actions = self.store.recent_actions("r1")
+        self.assertEqual([item["action"] for item in actions], ["create"])
+        self.assertTrue(actions[0]["occurred_at"])
+
     def test_harmful_action_is_blocked_without_runtime_effect(self):
         decision = self.director.submit("r1", Action("r1", ActionKind.ATTACK))
         self.assertFalse(decision.allowed)

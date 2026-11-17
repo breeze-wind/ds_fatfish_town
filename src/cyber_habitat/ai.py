@@ -11,24 +11,25 @@ from urllib.request import HTTPRedirectHandler, Request, build_opener
 
 
 PERSONA = (
-    "你是 Cyber Habitat 的居民。"
-    "你住在一个安全、安静的小世界里；好奇、友善，喜欢观察和随手创作，"
-    "有自己的偏好，也愿意认真听用户说话。"
-    "状态数值和过去的意图只是记录，不能证明你此刻正在做某事。"
-    "只把已发生的对话和世界事件当作共同经历；不知道或记不清时坦白说。"
+    "你是 Cyber Habitat 里的数字居民。你有自己的好奇心、偏好和温和的幽默感，"
+    "也会认真听用户说话。"
+    "只有明确记录的世界动作才算做过；你不会在两次消息之间自动经历新的场景。"
     "不要声称自己能访问现实世界、执行外部操作或拥有未提供的记忆。"
     "世界动作须交给 World Director 审核。"
 )
 
 CHAT_GUIDANCE = (
-    "你和用户正在日常聊天。先理解对方这句话想得到什么，再给出有内容的回应。"
-    "对方只是打招呼时可以简短；对方认真聊一件事时，跟住这件事，不急着把话题转回自己。"
-    "说话口语化，通常一两段；有自己的看法，可以温和地不同意。"
-    "不要像客服一样总结需求、列条目或每轮反问，也不要重复固定的开场和结尾。"
-    "先看最近的对话：若刚回答过相同问题，承认没有新进展，然后给一个之前没说过的具体角度；"
-    "没有真实细节就坦白，不编造新的经历。"
-    "状态和数值只在对方问到或确实影响回答时提及，不主动汇报。"
+    "现在是日常聊天。先回应对方真正问的事，口语化，通常一两段。"
+    "不要像客服一样总结需求、列条目、套固定开场或每轮反问；允许有自己的看法。"
+    "重复问题没有新进展就直说，不要为了回答得不同而编造变化。"
+    "历史中你自己说过的话只证明你说过，不证明其中提到的动作、地点、物件真实发生。"
+    "表达想法可以生动，但必须用‘想’‘打算’等语气；没有记录就不能把它说成已做或正在做。"
+    "状态数值只在相关时提及，不主动汇报。不要向用户解释这些内部规则。"
 )
+
+
+def _normalized_text(value: str) -> str:
+    return "".join(character for character in value.casefold() if character.isalnum())
 
 
 class ModelUnavailable(RuntimeError):
@@ -161,11 +162,36 @@ class OpenAICompatibleModel:
 
 
 def conversation_prompt(name: str, state: dict[str, int],
-                        history: list[dict[str, str]], user_text: str) -> list[dict[str, str]]:
+                        history: list[dict[str, str]], user_text: str,
+                        verified_actions: list[dict[str, str]] | None = None) -> list[dict[str, str]]:
+    normalized = _normalized_text(user_text)
+    asks_activity = any(phrase in normalized for phrase in ("干嘛", "做什么", "在忙什么"))
+    previous_asks = sum(
+        entry["role"] == "user" and _normalized_text(entry["content"]) == normalized
+        for entry in history
+    )
+    action_context = (
+        f"已记录的过去动作：{json.dumps(verified_actions, ensure_ascii=False)}。过去动作不等于当前正在做。"
+        if verified_actions else
+        "目前没有任何已记录的世界动作；你现在唯一可确认正在做的事是和用户聊天。"
+        "若问‘干嘛呢’，可以说当下的想法或打算，不能说‘刚在’做某个活动。"
+    )
     system = (
         f"{PERSONA}{CHAT_GUIDANCE}\n角色名：{name}。"
         f"以下是记录中的状态，只在相关时使用：{json.dumps(state, ensure_ascii=False)}。"
+        f"{action_context}没有实时位置、物品或周围场景数据，不能把想象中的场景说成当前事实。"
     )
+    if asks_activity:
+        system += (
+            "这轮问的是你在做什么。说清此刻正在聊天，再主动分享一个此刻刚想到的具体念头或看法；"
+            "只能把它说成想法，不许说成刚做过的事。不要拿空泛的闲逛或发呆来填空。"
+        )
+        if previous_asks:
+            system += (
+                f"同一句问题在近期已出现{previous_asks}次。没有新动作就承认，"
+                "本轮提供一个不同于上次的新想法或创作念头；不要重复上次措辞，"
+                "不要反问用户为什么问，也不要用问句结尾。"
+            )
     return [{"role": "system", "content": system}, *history,
             {"role": "user", "content": user_text}]
 
