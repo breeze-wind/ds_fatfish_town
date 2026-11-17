@@ -30,4 +30,4 @@ Documentation updates and ordinary additive work should still be listed in `AI_H
 - Compatibility or migration notes: world/admin controls remain in expandable settings; no data migration. The original inline SVG is project-authored placeholder art, not third-party pet assets.
 - Validation performed and result: 390×844 browser inspection; simulated UI message and page reload with a fake model and temporary SQLite database passed; Python suite result is recorded in `AI_HANDOFF.md`.
 - Original owner notified / next owner: original owner unknown; next AI should read this ledger and continue native Android client and secure access.
-- Commit: this work unit's commit; see the top entry of `AI_HANDOFF.md`.
+- Commit: `e25884a` for the changed code and initial notice; follow-up handoff commit records the exact delivery state.
