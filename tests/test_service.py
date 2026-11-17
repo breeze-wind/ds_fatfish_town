@@ -51,7 +51,10 @@ class ServiceTests(unittest.TestCase):
             response = urlopen(request, timeout=3)
         except HTTPError as error:
             response = error
-        return response.code, json.loads(response.read().decode("utf-8"))
+        try:
+            return response.code, json.loads(response.read().decode("utf-8"))
+        finally:
+            response.close()
 
     def test_create_submit_block_and_restore_after_restart(self):
         status, created = self.request("POST", "/residents", {"id": "mori", "name": " Mori "})
@@ -170,6 +173,49 @@ class ServiceTests(unittest.TestCase):
         system = model.prompt[0]["content"]
         self.assertIn('"action": "create"', system)
         self.assertNotIn('"action": "attack"', system)
+
+    def test_user_saved_memory_reaches_chat_and_can_be_deleted(self):
+        class CapturingModel:
+            ready = True
+            model = "fake"
+            prompt = None
+
+            def complete(self, messages, *, json_mode=False):
+                self.prompt = messages
+                return "收到。"
+
+        model = CapturingModel()
+        self.server.model = model
+        self.request("POST", "/residents", {"id": "mori", "name": "Mori"})
+        status, saved = self.request("POST", "/residents/mori/memories", {"content": " 我喜欢安静的海边 "})
+        self.assertEqual(status, 201)
+        memory_id = saved["memory"]["id"]
+        self.assertEqual(self.request("GET", "/residents/mori/memories")[1]["memories"][0]["content"],
+                         "我喜欢安静的海边")
+        self.request("POST", "/residents", {"id": "other", "name": "Other"})
+        self.assertEqual(self.request("GET", "/residents/other/memories")[1]["memories"], [])
+        self.assertEqual(self.request("DELETE", f"/residents/other/memories/{memory_id}")[0], 404)
+        self.assertEqual(self.request("POST", "/residents/mori/memories", {"content": "我喜欢安静的海边"})[0], 409)
+        self.request("POST", "/residents/mori/conversation", {"message": "你好"})
+        self.assertIn("我喜欢安静的海边", model.prompt[0]["content"])
+        self.assertEqual(self.request("DELETE", f"/residents/mori/memories/{memory_id}")[0], 200)
+        self.assertEqual(self.request("DELETE", f"/residents/mori/memories/{memory_id}")[0], 404)
+        self.request("POST", "/residents/mori/conversation", {"message": "再见"})
+        self.assertNotIn("我喜欢安静的海边", model.prompt[0]["content"])
+        events = self.request("GET", "/events")[1]["events"]
+        self.assertNotIn("我喜欢安静的海边", json.dumps(events, ensure_ascii=False))
+        self._stop_server()
+        self._start_server()
+        self.assertEqual(self.request("GET", "/residents/mori/memories")[1]["memories"], [])
+
+    def test_memory_validation_and_limit(self):
+        self.request("POST", "/residents", {"id": "mori", "name": "Mori"})
+        self.assertEqual(self.request("POST", "/residents/mori/memories", {"content": "  "})[0], 400)
+        self.assertEqual(self.request("POST", "/residents/mori/memories", {"content": "x" * 241})[0], 400)
+        for index in range(20):
+            self.assertEqual(self.request("POST", "/residents/mori/memories",
+                                          {"content": f"remember {index}"})[0], 201)
+        self.assertEqual(self.request("POST", "/residents/mori/memories", {"content": "one more"})[0], 409)
 
     def test_ai_harmful_proposal_is_blocked(self):
         self.server.model = type("BadModel", (), {

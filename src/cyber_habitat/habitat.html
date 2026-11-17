@@ -74,6 +74,11 @@
   .extras article { background: #19384a }
   .extras input { max-width: 100% }
   .extras button { background: #245978; border-color: #4f8399 }
+  #memoryText { flex: 1; min-width: 220px }
+  #memories { list-style: none; padding: 0 }
+  #memories li { display: flex; align-items: center; justify-content: space-between; gap: 10px; background: #19384a; border-radius: 12px; padding: 8px 10px }
+  #memories li span { overflow-wrap: anywhere }
+  #memories button { flex: none; padding: 6px 10px }
   #message { margin: 12px 4px; font-size: 13px }
   @media (max-width: 760px) { body { padding: 16px 13px 48px } .home { grid-template-columns: 1fr; gap: 12px } .stage { min-height: 400px; border-radius: 24px } .pet-button { width: min(76%, 310px); top: 49% } .companion-panel { gap: 12px } .companion-panel .surface:first-child { order: 2 } .companion-panel .surface:last-child { order: 1 } .topbar { align-items: start } .connection { max-width: 135px; text-align: center } }
   @media (prefers-reduced-motion: reduce) { .pet-body, .pet-tail, .pet-fin, .pet-eye { animation: none !important } }
@@ -90,12 +95,13 @@
 <p id="message" role="status"></p>
 <div class="extras"><div class="eyebrow">更多设置</div>
 <details><summary>模型连接</summary><section><div class="row"><input id="apiKey" type="password" autocomplete="off" placeholder="在本机输入 DeepSeek API Key" aria-label="DeepSeek API Key"><label><input id="rememberKey" type="checkbox" checked> 保存到本机配置</label><button id="connect">连接 DeepSeek</button><button id="disconnect">本次断开</button><button id="forgetKey">删除本机保存的密钥</button></div><p class="muted">保存后密钥以明文写入本项目已忽略的 <code>.env</code>；发送消息时，相关内容会发给 DeepSeek。</p></section></details>
+<details><summary>她记住的事</summary><section><p class="muted">只有你主动保存的内容会成为长期备忘。保存于本机数据库；以后聊天时会随消息发给当前连接的模型（默认 DeepSeek）。删除备忘不会删除原聊天记录。</p><div class="row"><input id="memoryText" maxlength="240" placeholder="例如：我喜欢安静的海边" aria-label="要保存的备忘"><button id="addMemory">记住</button></div><ul id="memories"></ul></section></details>
 <details><summary>世界与居民</summary><section><div class="row"><input id="name" value="Mori" maxlength="80" aria-label="角色名字"><button id="create">让角色进场</button><button id="tick">规则推进一天</button><button id="aiTick" disabled>AI 推进一天</button><button id="refresh">刷新世界</button></div><div id="residents" class="cards"></div></section></details>
 <details><summary>自主生活（可选）</summary><section><p class="muted">默认暂停。开启后居民会定时自己决定动作；服务重启时自动暂停。</p><div class="row"><label>间隔（分钟） <input id="intervalMinutes" type="number" min="1" max="1440" value="30" style="width:75px"></label><label>每天最多 <input id="dailyLimit" type="number" min="1" max="48" value="24" style="width:65px"></label><button id="startLife" disabled>开启自主生活</button><button id="stopLife">暂停</button></div><p id="lifeStatus" class="muted">正在读取状态…</p></section></details>
 <details><summary>世界记录</summary><section><ol id="events"></ol></section></details></div>
 <script>
 const $ = id => document.getElementById(id);
-const labels = {'resident.created':'进入世界','action.applied':'完成动作','action.blocked':'动作被阻止','world.discovery':'发现','world.weather':'天气','world.visitor':'访客','world.tick':'规则回合结束','world.ai_tick':'AI 回合结束','ai.proposal.rejected':'AI 提议被拒绝','resident.spoke':'说话'};
+const labels = {'resident.created':'进入世界','resident.memory_added':'记住备忘','resident.memory_deleted':'删除备忘','action.applied':'完成动作','action.blocked':'动作被阻止','world.discovery':'发现','world.weather':'天气','world.visitor':'访客','world.tick':'规则回合结束','world.ai_tick':'AI 回合结束','ai.proposal.rejected':'AI 提议被拒绝','resident.spoke':'说话'};
 const actions = {rest:'休息',learn:'学习',socialize:'社交',explore:'探索',create:'创作',attack:'攻击'};
 let aiConfigured = false;
 let petStateTimer;
@@ -166,6 +172,25 @@ async function refresh() {
   }
   if (!history.events.length) list.textContent = '暂无事件。';
   await loadConversation();
+  await loadMemories();
+}
+async function loadMemories() {
+  const list = $('memories'); list.replaceChildren();
+  const resident = $('chatResident').value;
+  if (!resident) { list.textContent = '先让角色进场。'; return; }
+  const data = await api(`/residents/${encodeURIComponent(resident)}/memories`);
+  for (const memory of data.memories) {
+    const item = document.createElement('li'); const content = document.createElement('span');
+    content.textContent = memory.content;
+    const button = document.createElement('button'); button.type = 'button'; button.textContent = '忘记';
+    button.setAttribute('aria-label', `删除备忘：${memory.content}`);
+    button.onclick = async () => {
+      try { await api(`/residents/${encodeURIComponent(resident)}/memories/${memory.id}`, {method:'DELETE'}); $('message').textContent = '已删除这条备忘'; await loadMemories(); }
+      catch (error) { $('message').textContent = error.message; }
+    };
+    item.append(content, button); list.append(item);
+  }
+  if (!data.memories.length) list.textContent = '还没有主动保存的备忘。';
 }
 async function loadConversation() {
   const log = $('chatLog'); log.replaceChildren();
@@ -209,7 +234,16 @@ $('send').onclick = async () => {
   catch (error) { $('message').textContent = error.message; setCaption('连接遇到问题', '这句话暂时没能送达，可以再试一次。'); setPetState('idle'); }
   finally { $('send').disabled = !aiConfigured || !$('chatResident').value; }
 };
-$('chatResident').onchange = () => loadConversation().catch(error => $('message').textContent = error.message);
+$('chatResident').onchange = () => Promise.all([loadConversation(), loadMemories()]).catch(error => $('message').textContent = error.message);
+$('addMemory').onclick = async () => {
+  const resident = $('chatResident').value; const content = $('memoryText').value.trim();
+  if (!resident) { $('message').textContent = '先让角色进场'; return; }
+  if (!content) { $('message').textContent = '先写下想让她记住的事'; return; }
+  $('addMemory').disabled = true;
+  try { await api(`/residents/${encodeURIComponent(resident)}/memories`, {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({content})}); $('memoryText').value = ''; $('message').textContent = 'Mori 已记住，之后聊天会用到'; await loadMemories(); }
+  catch (error) { $('message').textContent = error.message; }
+  finally { $('addMemory').disabled = false; }
+};
 $('chatMessage').onkeydown = event => { if (event.key === 'Enter') $('send').click(); };
 $('petButton').onclick = () => { setPetState('greeting', 1100); $('chatMessage').focus(); };
 $('chatMessage').onfocus = () => { if (!['thinking', 'greeting', 'speaking'].includes($('petButton').dataset.state)) setPetState('listening'); };

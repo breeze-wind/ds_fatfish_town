@@ -42,3 +42,14 @@ Documentation updates and ordinary additive work should still be listed in `AI_H
 - Validation performed and result: 32 Python tests passed. Nine real-model calls on temporary test residents informed the revision; final three-turn sample avoided unrecorded physical actions and repeated question endings, but broader quality acceptance is still pending.
 - Original owner notified / next owner: original owner unknown; next AI should read this ledger, compare multiple live runs, and obtain user feedback on tone.
 - Commit: `c606b36` for the grounded-dialogue code and initial notice; follow-up handoff commit records final delivery status.
+
+### 2026-11-17 — Add explicit saved resident memory
+
+- Previous owner/source: `unknown` for the original store, service, browser UI, and prompt code; this AI made the preceding dialogue edits.
+- Changed files: `src/cyber_habitat/store.py`, `src/cyber_habitat/service.py`, `src/cyber_habitat/ai.py`, `src/cyber_habitat/habitat.html`, tests, and API/product docs.
+- Why this changed: the resident forgot important facts once they left the 12-message context window; inferred memory risked turning guesses into facts.
+- Behavior/API/data effects: schema v4 adds user-saved resident memories; GET/POST/DELETE memory routes expose explicit add/list/remove, capped at 20 notes of 240 characters. Saved notes join future chat prompts only; memory events contain IDs, not note text. The UI discloses model sharing and that deletion does not erase original chat.
+- Compatibility or migration notes: v1–v3 SQLite databases migrate to v4 on startup; no key or external data is moved. Delete is not secure erasure of old chat or provider copies.
+- Validation performed and result: Python tests and browser UI smoke-test results are in the current `AI_HANDOFF.md`.
+- Original owner notified / next owner: original owner unknown; next AI should implement edit/correction and provenance-aware candidate memories only after user feedback.
+- Commit: see the saved-memory code milestone in `AI_HANDOFF.md`.

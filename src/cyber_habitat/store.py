@@ -5,7 +5,7 @@ from pathlib import Path
 
 from .domain import Resident, WorldEvent
 
-SCHEMA_VERSION = 3
+SCHEMA_VERSION = 4
 
 
 class SQLiteEventStore:
@@ -76,6 +76,22 @@ class SQLiteEventStore:
             except Exception:
                 self._db.rollback()
                 raise
+        if version < 4:
+            self._db.execute("BEGIN IMMEDIATE")
+            try:
+                self._db.execute("""CREATE TABLE resident_memories (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    resident_id TEXT NOT NULL REFERENCES residents(id),
+                    content TEXT NOT NULL CHECK (length(content) BETWEEN 1 AND 240),
+                    created_at TEXT NOT NULL,
+                    UNIQUE (resident_id, content)
+                )""")
+                self._db.execute("CREATE INDEX memories_resident_id ON resident_memories (resident_id, id)")
+                self._db.execute("PRAGMA user_version = 4")
+                self._db.commit()
+            except Exception:
+                self._db.rollback()
+                raise
 
     def get_intention(self, resident_id: str) -> str | None:
         row = self._db.execute("SELECT text FROM resident_intentions WHERE resident_id = ?", (resident_id,)).fetchone()
@@ -114,6 +130,57 @@ class SQLiteEventStore:
         ).fetchall()
         return [{"action": json.loads(row["payload_json"])["action"],
                  "occurred_at": row["occurred_at"]} for row in reversed(rows)]
+
+    def list_memories(self, resident_id: str) -> list[dict[str, object]]:
+        rows = self._db.execute(
+            "SELECT id, content, created_at FROM resident_memories WHERE resident_id = ? ORDER BY id",
+            (resident_id,),
+        ).fetchall()
+        return [dict(row) for row in rows]
+
+    def add_memory(self, resident_id: str, content: str) -> dict[str, object]:
+        occurred_at = datetime.now(timezone.utc).isoformat()
+        try:
+            self._db.execute("BEGIN IMMEDIATE")
+            count = self._db.execute(
+                "SELECT COUNT(*) FROM resident_memories WHERE resident_id = ?", (resident_id,)
+            ).fetchone()[0]
+            if count >= 20:
+                raise ValueError("resident memory limit is 20")
+            cursor = self._db.execute(
+                "INSERT INTO resident_memories (resident_id, content, created_at) VALUES (?, ?, ?)",
+                (resident_id, content, occurred_at),
+            )
+            self._db.execute(
+                "INSERT INTO world_events (occurred_at, event_type, subject, payload_json) VALUES (?, ?, ?, ?)",
+                (occurred_at, "resident.memory_added", resident_id, json.dumps({"memory_id": cursor.lastrowid})),
+            )
+            self._db.commit()
+        except Exception:
+            self._db.rollback()
+            raise
+        return {"id": cursor.lastrowid, "content": content, "created_at": occurred_at}
+
+    def delete_memory(self, resident_id: str, memory_id: int) -> bool:
+        occurred_at = datetime.now(timezone.utc).isoformat()
+        try:
+            self._db.execute("BEGIN IMMEDIATE")
+            cursor = self._db.execute(
+                "DELETE FROM resident_memories WHERE resident_id = ? AND id = ?",
+                (resident_id, memory_id),
+            )
+            if cursor.rowcount == 0:
+                self._db.rollback()
+                return False
+            self._db.execute(
+                "INSERT INTO world_events (occurred_at, event_type, subject, payload_json) VALUES (?, ?, ?, ?)",
+                (occurred_at, "resident.memory_deleted", resident_id, json.dumps({"memory_id": memory_id})),
+            )
+            self._db.commit()
+        except Exception:
+            self._db.rollback()
+            raise
+        return True
 
     def record_exchange(self, resident_id: str, user_text: str, answer: str) -> WorldEvent:
         occurred_at = datetime.now(timezone.utc).isoformat()

@@ -76,7 +76,8 @@ class HabitatHTTPServer(HTTPServer):
                                      {"energy": resident.energy, "safety": resident.safety,
                                       "growth": resident.growth},
                                      self.store.conversation(resident_id), message,
-                                     self.store.recent_actions(resident_id))
+                                     self.store.recent_actions(resident_id),
+                                     [item["content"] for item in self.store.list_memories(resident_id)])
         answer = self.model.complete(prompt)
         return answer, self.store.record_exchange(resident_id, message, answer)
 
@@ -194,6 +195,13 @@ class HabitatRequestHandler(BaseHTTPRequestHandler):
             return
         if parsed.path.startswith("/residents/"):
             resident_id = parsed.path.removeprefix("/residents/")
+            if resident_id.endswith("/memories"):
+                resident_id = resident_id.removesuffix("/memories")
+                if not RESIDENT_ID.fullmatch(resident_id) or resident_id not in self.server.director.residents:
+                    self._error(HTTPStatus.NOT_FOUND, "resident not found")
+                    return
+                self._send(HTTPStatus.OK, {"memories": self.server.store.list_memories(resident_id)})
+                return
             if resident_id.endswith("/conversation"):
                 resident_id = resident_id.removesuffix("/conversation")
                 if not RESIDENT_ID.fullmatch(resident_id) or resident_id not in self.server.director.residents:
@@ -414,6 +422,30 @@ class HabitatRequestHandler(BaseHTTPRequestHandler):
             })
             return
 
+        memory_suffix = "/memories"
+        if parsed.path.startswith("/residents/") and parsed.path.endswith(memory_suffix):
+            resident_id = parsed.path[len("/residents/"):-len(memory_suffix)]
+            if not RESIDENT_ID.fullmatch(resident_id) or resident_id not in self.server.director.residents:
+                self._error(HTTPStatus.NOT_FOUND, "resident not found")
+                return
+            if set(body) != {"content"} or not isinstance(body.get("content"), str):
+                self._error(HTTPStatus.BAD_REQUEST, "body requires content")
+                return
+            content = body["content"].strip()
+            if not 1 <= len(content) <= 240:
+                self._error(HTTPStatus.BAD_REQUEST, "memory must contain 1 to 240 characters")
+                return
+            try:
+                memory = self.server.store.add_memory(resident_id, content)
+            except sqlite3.IntegrityError:
+                self._error(HTTPStatus.CONFLICT, "memory already exists")
+                return
+            except ValueError as exc:
+                self._error(HTTPStatus.CONFLICT, str(exc))
+                return
+            self._send(HTTPStatus.CREATED, {"memory": memory})
+            return
+
         conversation_suffix = "/conversation"
         if parsed.path.startswith("/residents/") and parsed.path.endswith(conversation_suffix):
             resident_id = parsed.path[len("/residents/"):-len(conversation_suffix)]
@@ -469,6 +501,22 @@ class HabitatRequestHandler(BaseHTTPRequestHandler):
             })
             return
         self._error(HTTPStatus.NOT_FOUND, "route not found")
+
+    def do_DELETE(self) -> None:
+        if not self._host_is_local():
+            self._error(HTTPStatus.BAD_REQUEST, "Host must be localhost or a loopback address")
+            return
+        path = urlsplit(self.path).path
+        parts = path.strip("/").split("/")
+        if (len(parts) != 4 or parts[0] != "residents" or parts[2] != "memories"
+                or not RESIDENT_ID.fullmatch(parts[1]) or parts[1] not in self.server.director.residents
+                or not parts[3].isdigit()):
+            self._error(HTTPStatus.NOT_FOUND, "memory not found")
+            return
+        if not self.server.store.delete_memory(parts[1], int(parts[3])):
+            self._error(HTTPStatus.NOT_FOUND, "memory not found")
+            return
+        self._send(HTTPStatus.OK, {"deleted": True})
 
 
 def serve(host: str, port: int, db_path: str, *, seed: int = 0,
