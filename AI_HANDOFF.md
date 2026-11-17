@@ -2,6 +2,14 @@
 
 > Update this file before ending every meaningful AI work unit. It is the short, current-state entry point for the next AI; keep durable product decisions in `README.md` and detailed evidence in `docs/`.
 
+## Coopanion reference audit — 2026-11-17
+
+- User provided official site `coo.palailab.org` and a Bilibili tutorial. Official source is `Pal-AI-Lab/Coopanion`; current app is a Windows/macOS/Linux Electron desktop pet assembled from Cortico, Cormini, and a desktop pet World. See the new section in `docs/reuse-audit.md` and the link in `docs/android-pet-plan.md`.
+- Source inspection found a figure pack, canvas/mesh rig, springs, transparent desktop host, bubbles, and touch/drag events. Current code is AGPL-3.0-or-later; whale textures are excluded from that grant. The project README says releases through 0.1.10 were MIT, which does not license the current code as MIT. No binary was downloaded or unpacked; `electron-builder.yml` has `asar: false`, and the source is already public.
+- The Bilibili page was not readable through the available web reader, so the tutorial's contents were not verified. No Cyber Habitat behavior, server, account, or test state was changed in this audit. The next implementation step remains an Android pet shell with independently sourced art and state-linked interaction; any direct source import needs file-level license review.
+- `git fetch --all --prune` succeeded before these edits. Local `main` was two commits ahead of `origin/main`; the current connected GitHub identity remains read-only for the target repo.
+- Documentation-only audit was committed at the current `HEAD`. `git diff --check` passed and no high-confidence credential pattern was found in the changed files; tests were not run. The push attempt returned `could not read Username` with interaction disabled, so local `main` is now three commits ahead of `origin/main` and this audit is not yet on GitHub.
+
 ## Product priority update — 2026-11-17
 
 - User clarified that routine autonomous activity can wait. Prioritize a vivid, human-like Android desk pet and chatbot with polished UI. Use `docs/android-pet-plan.md` as the current plan; older autonomy-first/PWA-first/QQ-first statements below are historical.

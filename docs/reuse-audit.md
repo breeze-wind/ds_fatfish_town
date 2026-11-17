@@ -18,3 +18,22 @@ This is a bounded local check, not proof that no DSH files exist elsewhere on th
 - Provide `RuntimePort` and a deterministic `MockRuntime` now.
 - Use the separate bundle under `integrations/dsh-plugin/` to expose query/action tools in DSH conversations. Keep world state and action policy in Cyber Habitat; do not model a made-up DSH resident-action API. Desktop plugins extend Harness UI/workflows; they do not make the desktop shell a headless simulation engine.
 - Revisit existing open-source components after the DSH identity is confirmed; avoid pulling packages into the first offline loop.
+
+## Coopanion desktop-pet reference — 2026-11-17
+
+User-provided official site: <https://coo.palailab.org/>. Public source: <https://github.com/Pal-AI-Lab/Coopanion>. The official guide describes a Windows/macOS/Linux desktop companion that sits at the bottom of the screen, speaks through bubbles, accepts text/voice/touch, and may operate the computer when enabled. The linked Bilibili tutorial could not be viewed through the available web reader; the findings here come from the official site, repository, development guide, and notices, not from watching the video.
+
+### Implementation actually inspected
+
+- `packages/cortico-world-desktop-pet/` is the desktop pet World; `app/` is the Electron host. The [development guide](https://github.com/Pal-AI-Lab/Coopanion/blob/main/docs/DEVELOPMENT.md) describes Cortico Core, Cormini Persona, and the World as separate pieces.
+- The [World README](https://github.com/Pal-AI-Lab/Coopanion/blob/main/packages/cortico-world-desktop-pet/README.md) describes a transparent frameless desktop window, speech and option bubbles, touch and drag events, figure packs, movement, and a vocabulary of actions. These are useful interaction patterns for a vivid resident.
+- The whale's [`figure.js`](https://github.com/Pal-AI-Lab/Coopanion/blob/main/packages/cortico-world-desktop-pet/web/whale/figure.js) describes a canvas rig with mesh deformation, face texture, and springs for hair, skirt, tail, fins, and ahoge; [`figure.json`](https://github.com/Pal-AI-Lab/Coopanion/blob/main/packages/cortico-world-desktop-pet/web/whale/figure.json) declares the figure pack. This is an animated part rig, not a stack of GIFs or a Cubism SDK model.
+- [`electron-builder.yml`](https://github.com/Pal-AI-Lab/Coopanion/blob/main/electron-builder.yml) builds Windows installers/portable ZIPs, macOS DMGs/ZIPs, and Linux AppImage/deb; `asar: false`. Since the preferred source exists and packaged files are not hidden in ASAR, installer unpacking adds little value to the design audit. No binary was downloaded, installed, or unpacked in this review.
+
+### License and reuse boundary
+
+- Current Coopanion source is [AGPL-3.0-or-later](https://github.com/Pal-AI-Lab/Coopanion/blob/main/LICENSE), with an additional Steamworks permission. Its README says releases through 0.1.10 were MIT and Cortico is MIT; do not apply that historical MIT label to current source without checking the exact tag and files.
+- The project's [third-party notices](https://github.com/Pal-AI-Lab/Coopanion/blob/main/packages/cortico-world-desktop-pet/THIRD_PARTY_NOTICES.md) explicitly exclude `web/whale/` textures from the AGPL grant. The whale uses a referenced character design and vendor logos. Do not copy these textures, thumbnails, voice assets, or logos into Cyber Habitat based on the code license.
+- Technical feasibility: we can study the behavior and independently implement Android-native overlay/input plus our own animation assets. Copying current renderer or World code would require an explicit AGPL compatibility and distribution plan. Coopanion is a desktop Electron product; it is not a drop-in Android APK or replacement for our server.
+
+Decision for the current Android milestone: use Coopanion as a behavior and rig architecture reference. First map interactions to Mori's real chat/state events and create original or clearly licensed art. Defer any direct code import until a file-level license audit and a deliberate repository license decision.
