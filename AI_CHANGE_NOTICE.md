@@ -41,4 +41,4 @@ Documentation updates and ordinary additive work should still be listed in `AI_H
 - Compatibility or migration notes: no migration; old model-written chat remains in history as utterances, not verified world facts.
 - Validation performed and result: 32 Python tests passed. Nine real-model calls on temporary test residents informed the revision; final three-turn sample avoided unrecorded physical actions and repeated question endings, but broader quality acceptance is still pending.
 - Original owner notified / next owner: original owner unknown; next AI should read this ledger, compare multiple live runs, and obtain user feedback on tone.
-- Commit: see the current grounded-dialogue code milestone in `AI_HANDOFF.md`.
+- Commit: `c606b36` for the grounded-dialogue code and initial notice; follow-up handoff commit records final delivery status.
