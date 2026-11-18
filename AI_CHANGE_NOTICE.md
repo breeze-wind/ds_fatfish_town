@@ -63,4 +63,4 @@ Documentation updates and ordinary additive work should still be listed in `AI_H
 - Compatibility or migration notes: additive HTTP endpoint; existing SQLite data remains compatible. Future chats use the corrected text; prior chat messages and model-provider copies are not changed.
 - Validation performed and result: `git diff --check` passed and the loopback service restarted with `/healthz` returning `ok`; the new edit/duplicate/delete flow was not yet exercised. No tests were added or run.
 - Original owner notified / next owner: original owner unknown; next AI should perform the synthetic end-to-end flow after confirming the in-app browser/host networking path. Do not expose unauthenticated port 8765 beyond loopback.
-- Commit: `da14bf5`.
+- Commit: `e7f844c`.

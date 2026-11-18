@@ -4,7 +4,7 @@
 
 ## Editable user-controlled memories — 2026-11-18
 
-- Code commit: `59329b9` (`Allow editing user-saved memories`). After `git fetch origin`, `main` was 11 commits ahead of `origin/main` with no remote-only commits. Push was attempted and failed because Git Credential Manager could not start and Git had no username while terminal prompts were disabled.
+- Code commit: `e7f844c` (`Allow editing user-saved memories`). After `git fetch origin`, `main` was 11 commits ahead of `origin/main` with no remote-only commits. Push was attempted and failed because Git Credential Manager could not start and Git had no username while terminal prompts were disabled. A follow-up documentation commit records the exact code-commit pointer and change-ledger entry; local `main` is now 12 commits ahead.
 - Added `PUT /residents/{id}/memories/{memory_id}` and an inline editor in the “她记住的事” panel. Notes remain user-authored, limited to 240 characters and 20 per resident. Duplicate text returns `409`; missing notes return `404`; no-op edits do not create events. Real edits append `resident.memory_updated` with only the memory ID, preserving note privacy in the event log.
 - Updated the service contract, main README feature summary, memory disclosure and event label. Automatic extraction/correction is still not implemented; the user explicitly edits the note.
 - Validation boundary: no automated tests were added or run for this slice. `git diff --check` passed. Restarted the loopback service; `GET /healthz` returned `ok`. CRUD behavior for the new editor remains unverified. The existing in-app browser cannot reach the host-local listener; do not expose unauthenticated port 8765 to LAN or internet.
