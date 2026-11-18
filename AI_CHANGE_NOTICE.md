@@ -64,3 +64,10 @@ Documentation updates and ordinary additive work should still be listed in `AI_H
 - Validation performed and result: `git diff --check` passed and the loopback service restarted with `/healthz` returning `ok`; the new edit/duplicate/delete flow was not yet exercised. No tests were added or run.
 - Original owner notified / next owner: original owner unknown; next AI should perform the synthetic end-to-end flow after confirming the in-app browser/host networking path. Do not expose unauthenticated port 8765 beyond loopback.
 - Commit: `e7f844c`.
+
+### Whale-girl Mori browser redesign
+
+- Previous owner/source: browser home from `e25884a`, memory controls from `e7f844c`, HTTP service owner unknown.
+- Changed paths: `src/cyber_habitat/habitat.html`, `service.py`, `mori.webp` and package data. The user asked to replace the giant whale with a whale girl and look for a reusable open source UI.
+- Effects: dashboard cards became a character stage and conversation panel. Existing element hooks for chat, memory and world controls are retained. Added a static illustration endpoint. No database migration.
+- Attribution and delivery status are in `THIRD_PARTY_NOTICES.md` and `AI_HANDOFF.md`.

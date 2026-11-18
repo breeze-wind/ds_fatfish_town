@@ -162,10 +162,14 @@ class HabitatRequestHandler(BaseHTTPRequestHandler):
             self._error(HTTPStatus.BAD_REQUEST, "Host must be localhost or a loopback address")
             return
         parsed = urlsplit(self.path)
-        if parsed.path == "/":
-            body = Path(__file__).with_name("habitat.html").read_bytes()
+        if parsed.path in {"/", "/mori.webp"}:
+            if parsed.path == "/":
+                filename, content_type = "habitat.html", "text/html; charset=utf-8"
+            else:
+                filename, content_type = "mori.webp", "image/webp"
+            body = Path(__file__).with_name(filename).read_bytes()
             self.send_response(HTTPStatus.OK)
-            self.send_header("Content-Type", "text/html; charset=utf-8")
+            self.send_header("Content-Type", content_type)
             self.send_header("Content-Length", str(len(body)))
             self.send_header("Cache-Control", "no-store")
             self.send_header("X-Content-Type-Options", "nosniff")

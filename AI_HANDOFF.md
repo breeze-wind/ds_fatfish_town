@@ -2,6 +2,15 @@
 
 > Update this file before ending every meaningful AI work unit. It is the short, current-state entry point for the next AI; keep durable product decisions in `README.md` and detailed evidence in `docs/`.
 
+## Whale-girl Mori browser redesign
+
+- Replaced the old whale SVG with original generated whale-girl art. The transparent `src/cyber_habitat/mori.webp` is packaged with the app and served at `/mori.webp`.
+- Rebuilt the home page around the illustration and chat. Chat bubble structure follows daisyUI under MIT, with attribution in `THIRD_PARTY_NOTICES.md`. The artwork and styles are local. Resident status is collapsible, and the existing model, memory, and world controls are below the chat.
+- Git fetch was attempted but failed during GitHub DNS resolution. The last known `origin/main` has no remote-only commits. The unrelated local `Start-Mori.cmd` was preserved.
+- Rendered the actual HTML and local WebP in Edge at 1200×830 and 390×844 with synthetic API responses. Both layouts loaded the image and conversation, had no horizontal overflow, and focused the chat input on character click. Screenshots are `mori-desktop-preview.png` and `mori-mobile-preview.png` in the parent task workspace. No live model call was made.
+- A separate real HTTP check with an in-memory database returned 200 for both the homepage and the WebP route.
+- Local delivery is the commit titled `Redesign Mori as a whale-girl companion`. Restart the Python service to register the new static route, then reload the page. No remote deployment.
+
 ## Editable user-controlled memories — 2026-11-18
 
 - Code commit: `e7f844c` (`Allow editing user-saved memories`). After `git fetch origin`, `main` was 11 commits ahead of `origin/main` with no remote-only commits. Push was attempted and failed because Git Credential Manager could not start and Git had no username while terminal prompts were disabled. A follow-up documentation commit records the exact code-commit pointer and change-ledger entry; local `main` is now 12 commits ahead.
