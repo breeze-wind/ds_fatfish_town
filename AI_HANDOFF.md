@@ -2,6 +2,14 @@
 
 > Update this file before ending every meaningful AI work unit. It is the short, current-state entry point for the next AI; keep durable product decisions in `README.md` and detailed evidence in `docs/`.
 
+## Saved-memory model check and local preview — 2026-11-18
+
+- Real-model check: passed one direct DeepSeek prompt check using only a synthetic saved note (“call the test user 小明”); the model replied “记得，你让我称呼你小明。” This confirms saved-note prompt inclusion for one request. It is not a browser end-to-end test or a reliability study; no private user data was sent. Details and limits are in `docs/mori-dialogue-design.md`.
+- Temporary evaluation artifact: `.ui_memory_eval.py` was only a disposable UI harness and has been removed. The earlier fake-model UI smoke test and 34-test result remain the latest full-suite evidence; no tests were rerun for this documentation update.
+- Preview: restarted the service on loopback and verified `GET http://127.0.0.1:8765/healthz` returned `ok`. The Codex in-app browser still reports `ERR_CONNECTION_REFUSED`, so its access to the host-local service is not verified. Do not expose the unauthenticated service to LAN or internet to work around that isolation.
+- Git: `885964f` (`Document real model memory check`) records this documentation update. `git fetch origin` succeeded; remote had no new commits and local `main` is 10 commits ahead. `git push origin main` was retried and failed because Git Credential Manager could not start and Git had no username while terminal prompts were disabled. Keep all local commits; do not reset. GitHub still lacks these local changes.
+- Next: show the user the refreshed page, collect concrete examples of unnatural dialogue, then improve Mori's persona and editable/correctable memory. Native Android shell, secure phone connection, and APK/device validation remain outstanding.
+
 ## User-controlled Mori memory — 2026-11-17
 
 - Code milestone: `e6fabb4` (`Add user controlled resident memories`). SQLite schema v4 adds up to 20 user-saved notes per resident (240 characters each). The local API lists, adds, and deletes them; each change appends a world event containing only the memory ID, not the note. Chat prompts include saved notes as user data, and deleted notes disappear from future prompts. The browser has “她记住的事” with a clear disclosure that saved notes go to the configured model on later chats and that deleting a note does not erase original chat history. `docs/service-api.md` and `docs/mori-dialogue-design.md` describe contracts and limits.
