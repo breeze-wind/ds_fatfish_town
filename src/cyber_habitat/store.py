@@ -161,6 +161,35 @@ class SQLiteEventStore:
             raise
         return {"id": cursor.lastrowid, "content": content, "created_at": occurred_at}
 
+    def update_memory(self, resident_id: str, memory_id: int, content: str) -> dict[str, object] | None:
+        occurred_at = datetime.now(timezone.utc).isoformat()
+        try:
+            self._db.execute("BEGIN IMMEDIATE")
+            row = self._db.execute(
+                "SELECT id, content, created_at FROM resident_memories WHERE resident_id = ? AND id = ?",
+                (resident_id, memory_id),
+            ).fetchone()
+            if row is None:
+                self._db.rollback()
+                return None
+            if row["content"] == content:
+                self._db.commit()
+                return dict(row)
+            self._db.execute(
+                "UPDATE resident_memories SET content = ? WHERE resident_id = ? AND id = ?",
+                (content, resident_id, memory_id),
+            )
+            self._db.execute(
+                "INSERT INTO world_events (occurred_at, event_type, subject, payload_json) VALUES (?, ?, ?, ?)",
+                (occurred_at, "resident.memory_updated", resident_id,
+                 json.dumps({"memory_id": memory_id})),
+            )
+            self._db.commit()
+        except Exception:
+            self._db.rollback()
+            raise
+        return {"id": memory_id, "content": content, "created_at": row["created_at"]}
+
     def delete_memory(self, resident_id: str, memory_id: int) -> bool:
         occurred_at = datetime.now(timezone.utc).isoformat()
         try:

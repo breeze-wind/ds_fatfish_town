@@ -78,6 +78,9 @@
   #memories { list-style: none; padding: 0 }
   #memories li { display: flex; align-items: center; justify-content: space-between; gap: 10px; background: #19384a; border-radius: 12px; padding: 8px 10px }
   #memories li span { overflow-wrap: anywhere }
+  #memories li input { min-width: 0; flex: 1 }
+  #memories li div { display: flex; gap: 6px; flex-wrap: wrap }
+  #memories [hidden] { display: none !important }
   #memories button { flex: none; padding: 6px 10px }
   #message { margin: 12px 4px; font-size: 13px }
   @media (max-width: 760px) { body { padding: 16px 13px 48px } .home { grid-template-columns: 1fr; gap: 12px } .stage { min-height: 400px; border-radius: 24px } .pet-button { width: min(76%, 310px); top: 49% } .companion-panel { gap: 12px } .companion-panel .surface:first-child { order: 2 } .companion-panel .surface:last-child { order: 1 } .topbar { align-items: start } .connection { max-width: 135px; text-align: center } }
@@ -95,13 +98,13 @@
 <p id="message" role="status"></p>
 <div class="extras"><div class="eyebrow">更多设置</div>
 <details><summary>模型连接</summary><section><div class="row"><input id="apiKey" type="password" autocomplete="off" placeholder="在本机输入 DeepSeek API Key" aria-label="DeepSeek API Key"><label><input id="rememberKey" type="checkbox" checked> 保存到本机配置</label><button id="connect">连接 DeepSeek</button><button id="disconnect">本次断开</button><button id="forgetKey">删除本机保存的密钥</button></div><p class="muted">保存后密钥以明文写入本项目已忽略的 <code>.env</code>；发送消息时，相关内容会发给 DeepSeek。</p></section></details>
-<details><summary>她记住的事</summary><section><p class="muted">只有你主动保存的内容会成为长期备忘。保存于本机数据库；以后聊天时会随消息发给当前连接的模型（默认 DeepSeek）。删除备忘不会删除原聊天记录。</p><div class="row"><input id="memoryText" maxlength="240" placeholder="例如：我喜欢安静的海边" aria-label="要保存的备忘"><button id="addMemory">记住</button></div><ul id="memories"></ul></section></details>
+<details><summary>她记住的事</summary><section><p class="muted">只有你主动保存的内容会成为长期备忘。保存于本机数据库；以后聊天时会随消息发给当前连接的模型（默认 DeepSeek）。你可以修改或删除备忘；删除不会清除原聊天记录。</p><div class="row"><input id="memoryText" maxlength="240" placeholder="例如：我喜欢安静的海边" aria-label="要保存的备忘"><button id="addMemory">记住</button></div><ul id="memories"></ul></section></details>
 <details><summary>世界与居民</summary><section><div class="row"><input id="name" value="Mori" maxlength="80" aria-label="角色名字"><button id="create">让角色进场</button><button id="tick">规则推进一天</button><button id="aiTick" disabled>AI 推进一天</button><button id="refresh">刷新世界</button></div><div id="residents" class="cards"></div></section></details>
 <details><summary>自主生活（可选）</summary><section><p class="muted">默认暂停。开启后居民会定时自己决定动作；服务重启时自动暂停。</p><div class="row"><label>间隔（分钟） <input id="intervalMinutes" type="number" min="1" max="1440" value="30" style="width:75px"></label><label>每天最多 <input id="dailyLimit" type="number" min="1" max="48" value="24" style="width:65px"></label><button id="startLife" disabled>开启自主生活</button><button id="stopLife">暂停</button></div><p id="lifeStatus" class="muted">正在读取状态…</p></section></details>
 <details><summary>世界记录</summary><section><ol id="events"></ol></section></details></div>
 <script>
 const $ = id => document.getElementById(id);
-const labels = {'resident.created':'进入世界','resident.memory_added':'记住备忘','resident.memory_deleted':'删除备忘','action.applied':'完成动作','action.blocked':'动作被阻止','world.discovery':'发现','world.weather':'天气','world.visitor':'访客','world.tick':'规则回合结束','world.ai_tick':'AI 回合结束','ai.proposal.rejected':'AI 提议被拒绝','resident.spoke':'说话'};
+const labels = {'resident.created':'进入世界','resident.memory_added':'记住备忘','resident.memory_updated':'修改备忘','resident.memory_deleted':'删除备忘','action.applied':'完成动作','action.blocked':'动作被阻止','world.discovery':'发现','world.weather':'天气','world.visitor':'访客','world.tick':'规则回合结束','world.ai_tick':'AI 回合结束','ai.proposal.rejected':'AI 提议被拒绝','resident.spoke':'说话'};
 const actions = {rest:'休息',learn:'学习',socialize:'社交',explore:'探索',create:'创作',attack:'攻击'};
 let aiConfigured = false;
 let petStateTimer;
@@ -182,13 +185,41 @@ async function loadMemories() {
   for (const memory of data.memories) {
     const item = document.createElement('li'); const content = document.createElement('span');
     content.textContent = memory.content;
-    const button = document.createElement('button'); button.type = 'button'; button.textContent = '忘记';
-    button.setAttribute('aria-label', `删除备忘：${memory.content}`);
-    button.onclick = async () => {
+    const editor = document.createElement('input'); editor.maxLength = 240; editor.value = memory.content;
+    editor.setAttribute('aria-label', `修改备忘：${memory.content}`); editor.hidden = true;
+    const edit = document.createElement('button'); edit.type = 'button'; edit.textContent = '修改';
+    edit.setAttribute('aria-label', `修改备忘：${memory.content}`);
+    const save = document.createElement('button'); save.type = 'button'; save.textContent = '保存'; save.hidden = true;
+    const cancel = document.createElement('button'); cancel.type = 'button'; cancel.textContent = '取消'; cancel.hidden = true;
+    const forget = document.createElement('button'); forget.type = 'button'; forget.textContent = '忘记';
+    forget.setAttribute('aria-label', `删除备忘：${memory.content}`);
+    const controls = document.createElement('div');
+    const toggleEditor = editing => {
+      content.hidden = editing; editor.hidden = !editing;
+      edit.hidden = editing; forget.hidden = editing; save.hidden = !editing; cancel.hidden = !editing;
+      if (editing) { editor.value = memory.content; editor.focus(); }
+    };
+    edit.onclick = () => toggleEditor(true);
+    cancel.onclick = () => toggleEditor(false);
+    save.onclick = async () => {
+      const corrected = editor.value.trim();
+      if (!corrected) { $('message').textContent = '备忘不能为空'; return; }
+      save.disabled = true;
+      try {
+        await api(`/residents/${encodeURIComponent(resident)}/memories/${memory.id}`, {
+          method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify({content:corrected})
+        });
+        $('message').textContent = corrected === memory.content ? '备忘没有变化' : '已修正备忘，之后聊天会使用新内容';
+        await loadMemories();
+      } catch (error) { $('message').textContent = error.message; }
+      finally { save.disabled = false; }
+    };
+    forget.onclick = async () => {
       try { await api(`/residents/${encodeURIComponent(resident)}/memories/${memory.id}`, {method:'DELETE'}); $('message').textContent = '已删除这条备忘'; await loadMemories(); }
       catch (error) { $('message').textContent = error.message; }
     };
-    item.append(content, button); list.append(item);
+    controls.append(edit, save, cancel, forget);
+    item.append(content, editor, controls); list.append(item);
   }
   if (!data.memories.length) list.textContent = '还没有主动保存的备忘。';
 }

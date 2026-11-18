@@ -2,6 +2,14 @@
 
 > Update this file before ending every meaningful AI work unit. It is the short, current-state entry point for the next AI; keep durable product decisions in `README.md` and detailed evidence in `docs/`.
 
+## Editable user-controlled memories — 2026-11-18
+
+- Code commit: `59329b9` (`Allow editing user-saved memories`). After `git fetch origin`, `main` was 11 commits ahead of `origin/main` with no remote-only commits. Push was attempted and failed because Git Credential Manager could not start and Git had no username while terminal prompts were disabled.
+- Added `PUT /residents/{id}/memories/{memory_id}` and an inline editor in the “她记住的事” panel. Notes remain user-authored, limited to 240 characters and 20 per resident. Duplicate text returns `409`; missing notes return `404`; no-op edits do not create events. Real edits append `resident.memory_updated` with only the memory ID, preserving note privacy in the event log.
+- Updated the service contract, main README feature summary, memory disclosure and event label. Automatic extraction/correction is still not implemented; the user explicitly edits the note.
+- Validation boundary: no automated tests were added or run for this slice. `git diff --check` passed. Restarted the loopback service; `GET /healthz` returned `ok`. CRUD behavior for the new editor remains unverified. The existing in-app browser cannot reach the host-local listener; do not expose unauthenticated port 8765 to LAN or internet.
+- Previous saved-memory milestone and real-model check remain immediately below. The real-model test used synthetic data only. Android native shell, secure phone connection, APK/device validation and GitHub write access remain open.
+
 ## Saved-memory model check and local preview — 2026-11-18
 
 - Real-model check: passed one direct DeepSeek prompt check using only a synthetic saved note (“call the test user 小明”); the model replied “记得，你让我称呼你小明。” This confirms saved-note prompt inclusion for one request. It is not a browser end-to-end test or a reliability study; no private user data was sent. Details and limits are in `docs/mori-dialogue-design.md`.

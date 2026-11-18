@@ -518,6 +518,36 @@ class HabitatRequestHandler(BaseHTTPRequestHandler):
             return
         self._send(HTTPStatus.OK, {"deleted": True})
 
+    def do_PUT(self) -> None:
+        if not self._host_is_local():
+            self._error(HTTPStatus.BAD_REQUEST, "Host must be localhost or a loopback address")
+            return
+        parts = urlsplit(self.path).path.strip("/").split("/")
+        if (len(parts) != 4 or parts[0] != "residents" or parts[2] != "memories"
+                or not RESIDENT_ID.fullmatch(parts[1]) or parts[1] not in self.server.director.residents
+                or not parts[3].isdigit()):
+            self._error(HTTPStatus.NOT_FOUND, "memory not found")
+            return
+        body = self._read_json()
+        if body is None:
+            return
+        if set(body) != {"content"} or not isinstance(body.get("content"), str):
+            self._error(HTTPStatus.BAD_REQUEST, "body requires content")
+            return
+        content = body["content"].strip()
+        if not 1 <= len(content) <= 240:
+            self._error(HTTPStatus.BAD_REQUEST, "memory must contain 1 to 240 characters")
+            return
+        try:
+            memory = self.server.store.update_memory(parts[1], int(parts[3]), content)
+        except sqlite3.IntegrityError:
+            self._error(HTTPStatus.CONFLICT, "memory already exists")
+            return
+        if memory is None:
+            self._error(HTTPStatus.NOT_FOUND, "memory not found")
+            return
+        self._send(HTTPStatus.OK, {"memory": memory})
+
 
 def serve(host: str, port: int, db_path: str, *, seed: int = 0,
           random_event_chance: float = 0.15) -> None:

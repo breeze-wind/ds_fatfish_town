@@ -14,6 +14,7 @@ All JSON request bodies must use `Content-Type: application/json`, be a JSON obj
 | `GET /residents/{id}` | none | `200 {"resident":...}` or `404` |
 | `GET /residents/{id}/memories` | none | `200 {"memories":[{"id":...,"content":...,"created_at":...}]}` |
 | `POST /residents/{id}/memories` | `{"content":"..."}` (trimmed, 1–240 characters) | `201` with saved memory; duplicate or 20-item cap returns `409` |
+| `PUT /residents/{id}/memories/{memory_id}` | `{"content":"..."}` (trimmed, 1–240 characters) | `200` with updated memory; duplicate content returns `409`, missing memory returns `404` |
 | `DELETE /residents/{id}/memories/{memory_id}` | none | `200 {"deleted":true}` or `404`; removes this memory from future chat context |
 | `POST /residents` | `{"name":"Mori"}`; optional `id` | `201` with resident and `resident.created` event; duplicate id is `409` |
 | `POST /residents/{id}/actions` | `{"kind":"rest|learn|socialize|explore|create|attack"}`; optional `detail` | `200` with decision, current resident, and emitted events |

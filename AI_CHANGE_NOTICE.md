@@ -53,3 +53,14 @@ Documentation updates and ordinary additive work should still be listed in `AI_H
 - Validation performed and result: Python tests and browser UI smoke-test results are in the current `AI_HANDOFF.md`.
 - Original owner notified / next owner: original owner unknown; next AI should implement edit/correction and provenance-aware candidate memories only after user feedback.
 - Commit: `e6fabb4` for the saved-memory code and initial notice; follow-up handoff commit records final delivery status.
+
+### 2026-11-18 — Add direct editing for saved resident memories
+
+- Previous owner/source: `unknown` for the original SQLite store, HTTP memory routes, and browser memory panel; latest prior code milestone was `e6fabb4`.
+- Changed files: `src/cyber_habitat/store.py`, `src/cyber_habitat/service.py`, `src/cyber_habitat/habitat.html`, `docs/service-api.md`, `README.md`, and `AI_HANDOFF.md`.
+- Why this changed: users need to correct a saved fact in place when it becomes outdated or was phrased incorrectly.
+- Behavior/API/data effects: adds `PUT /residents/{id}/memories/{memory_id}` with the existing 1–240 character validation; duplicate text returns `409`, missing memory returns `404`, and an unchanged value creates no event. Changed content creates `resident.memory_updated` with only the note ID; original `created_at` remains unchanged. The UI provides inline edit/save/cancel controls. No schema migration.
+- Compatibility or migration notes: additive HTTP endpoint; existing SQLite data remains compatible. Future chats use the corrected text; prior chat messages and model-provider copies are not changed.
+- Validation performed and result: `git diff --check` passed and the loopback service restarted with `/healthz` returning `ok`; the new edit/duplicate/delete flow was not yet exercised. No tests were added or run.
+- Original owner notified / next owner: original owner unknown; next AI should perform the synthetic end-to-end flow after confirming the in-app browser/host networking path. Do not expose unauthenticated port 8765 beyond loopback.
+- Commit: `da14bf5`.
