@@ -29,13 +29,14 @@
   .pet-button[data-state="speaking"] .pet-body, .pet-button[data-state="greeting"] .pet-body { animation-duration: 1.55s }
   .pet-button[data-state="listening"] .pet-body { filter: drop-shadow(0 0 20px #e2d8ff85) }
   .pet-button[data-state="sleepy"] .pet-body { animation-duration: 10s }
-  .pet-video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; visibility: hidden; pointer-events: none; filter: drop-shadow(0 14px 16px #18132e55) }
-  .pet-button[data-video="playing"] .pet-video { visibility: visible }
-  .pet-button[data-video="playing"] .pet-body { visibility: hidden }
+  .pet-video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; opacity: 0; pointer-events: none; filter: drop-shadow(0 14px 16px #18132e55) }
+  .pet-video[data-front] { opacity: 1; z-index: 1; transition: opacity 180ms ease }
+  .pet-video[data-outgoing] { opacity: 0; transition: opacity 180ms ease }
+  .pet-button[data-video] .pet-body { visibility: hidden }
   .pet-credit { display: inline-block; margin-top: 6px; color: #f0ebff; background: #25223ee8; border-radius: 8px; padding: 2px 7px; font-size: 10px; pointer-events: auto }
   .pet-credit[hidden] { display: none }
   @keyframes drift { 50% { transform: translateY(-9px) rotate(-1deg) } }
-  .stage-bottom { position: absolute; inset: auto 26px 24px; pointer-events: none }
+  .stage-bottom { position: absolute; z-index: 2; inset: auto 26px 24px; pointer-events: none }
   .pet-caption { max-width: 390px; background: #25223ee8; color: #fff; border: 1px solid #e9ddff40; border-radius: 17px; padding: 11px 15px; line-height: 1.6; font-size: 14px }
   .pet-caption small { display: block; font-size: 11px; color: #e0cffb }
   #petCaption { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; overflow-wrap: anywhere }
@@ -88,13 +89,13 @@
     .companion-panel { padding: 16px }
     #chatLog { height: 245px }
   }
-  @media (prefers-reduced-motion: reduce) { .pet-body { animation: none } }
+  @media (prefers-reduced-motion: reduce) { .pet-body { animation: none } .pet-video[data-front], .pet-video[data-outgoing] { transition: none } }
 </style>
 <header class="topbar"><h1>Cyber Habitat</h1><nav aria-label="页面导航"><span id="aiStatus" class="connection">正在检查连接…</span><a href="http://127.0.0.1:8766/" target="_blank" rel="noopener">两人小屋</a><a href="#settings">设置</a></nav></header>
 <main class="home">
   <section class="stage" aria-label="Mori 的房间">
     <div class="stage-top"><div><strong id="petName">Mori</strong><p id="petActivity">在这里陪着你</p></div><span class="stage-tag" id="petMood">安静待着</span></div>
-    <button class="pet-button" id="petButton" type="button" data-state="idle" aria-label="轻触 Mori 打招呼"><img class="pet-body" src="/mori.webp" alt="鲸鱼娘 Mori" fetchpriority="high"><video id="petVideo" class="pet-video" muted playsinline preload="none" aria-hidden="true"></video></button>
+    <button class="pet-button" id="petButton" type="button" data-state="idle" aria-label="轻触 Mori 打招呼"><img class="pet-body" src="/mori.webp" alt="鲸鱼娘 Mori" fetchpriority="high"><video class="pet-video" muted playsinline preload="auto" aria-hidden="true"></video><video class="pet-video" muted playsinline preload="auto" aria-hidden="true"></video></button>
     <div class="stage-bottom"><div class="pet-caption"><small id="petCaptionLabel">最近的话</small><span id="petCaption">等你来聊聊。</span></div><a id="petCredit" class="pet-credit" hidden href="https://github.com/PC2005-cloud/dsh-pet#许可" target="_blank" rel="noopener noreferrer">大肥鱼 · 上善无形 / ZipZipPipe / dsh-pet · CC BY-NC-SA 4.0</a></div>
   </section>
   <div class="companion-panel">
@@ -120,55 +121,105 @@ const labels = {'resident.created':'进入世界','resident.memory_added':'记�
 const actions = {rest:'休息',learn:'学习',socialize:'社交',explore:'探索',create:'创作',attack:'攻击'};
 let aiConfigured = false;
 let petStateTimer;
+let restingState = 'idle';
 const petButton = $('petButton');
-const petVideo = $('petVideo');
+const petVideos = [...petButton.querySelectorAll('video')];
 const previewToggle = $('whalePreview');
 const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
 const previewClips = {greeting:'greeting', thinking:'thinking', sleepy:'sleepy'};
 const unsupportedClips = new Set();
-let currentClip = null;
+let front = null;
+let requestedClip = null;
 let playbackVersion = 0;
+let releaseTimer;
 try { previewToggle.checked = localStorage.getItem('habitat.whalePreview') !== 'off'; } catch {}
 
-function renderPetMotion() {
-  const state = petButton.dataset.state;
-  const clip = previewToggle.checked && !reducedMotion.matches && petVideo.canPlayType('video/webm; codecs="vp9"')
-    ? (previewClips[state] || 'idle') : null;
-  if (clip === currentClip) return;
-  currentClip = clip;
+function parkVideo(video) {
+  video.pause();
+  delete video.dataset.front;
+  delete video.dataset.outgoing;
+}
+
+function waitForPetFrame(video) {
+  if (!video.requestVideoFrameCallback) return Promise.resolve();
+  return new Promise(resolve => {
+    function done() {
+      clearTimeout(timeout);
+      resolve();
+    }
+    const frame = video.requestVideoFrameCallback(done);
+    const timeout = setTimeout(() => {
+      video.cancelVideoFrameCallback(frame);
+      done();
+    }, 250);
+  });
+}
+
+async function renderPetMotion() {
+  const clip = previewToggle.checked && !reducedMotion.matches && petVideos[0].canPlayType('video/webm; codecs="vp9"')
+    ? (previewClips[petButton.dataset.state] || 'idle') : null;
+  if (clip === requestedClip) return;
+  requestedClip = clip;
   const version = ++playbackVersion;
-  delete petButton.dataset.video;
-  $('petCredit').hidden = true;
-  petVideo.pause();
-  if (!clip || unsupportedClips.has(clip)) {
-    petVideo.removeAttribute('src');
-    petVideo.load();
+  clearTimeout(releaseTimer);
+  if (!clip) {
+    for (const video of petVideos) parkVideo(video);
+    front = null;
+    delete petButton.dataset.video;
+    $('petCredit').hidden = true;
     return;
   }
-  petVideo.muted = true;
-  petVideo.loop = clip !== 'greeting';
-  petVideo.src = `/whale-preview/${clip}.webm`;
-  petVideo.play().then(() => {
+  const next = petVideos.find(video => video !== front);
+  parkVideo(next);
+  if (front?.dataset.clip === clip || unsupportedClips.has(clip)) return;
+  // Keep the current clip visible while the other video buffers and decodes.
+  if (next.dataset.clip !== clip) {
+    next.dataset.clip = clip;
+    next.src = `/whale-preview/${clip}.webm`;
+  } else if (clip !== 'idle') {
+    next.currentTime = 0;
+  }
+  next.muted = true;
+  next.loop = clip !== 'greeting';
+  try {
+    await next.play();
     if (version !== playbackVersion) return;
+    await waitForPetFrame(next);
+    if (version !== playbackVersion) return;
+    const old = front;
+    front = next;
+    next.dataset.front = '';
     petButton.dataset.video = 'playing';
     $('petCredit').hidden = false;
-  }).catch(error => {
+    if (old) {
+      old.pause();
+      old.dataset.outgoing = '';
+      delete old.dataset.front;
+      // Fade the frozen outgoing frame underneath the new one.
+      releaseTimer = setTimeout(() => parkVideo(old), 180);
+    }
+  } catch (error) {
     if (version !== playbackVersion) return;
-    if (error.name === 'NotSupportedError') unsupportedClips.add(clip);
-    currentClip = null;
-    if (state === 'greeting') setPetState('idle');
-  });
+    if (error.name === 'NotSupportedError') {
+      unsupportedClips.add(clip);
+      delete next.dataset.clip;
+    }
+    requestedClip = null;
+    if (clip === 'greeting') setPetState(restingState);
+  }
 }
 
 function setPetState(state, duration = 0) {
   clearTimeout(petStateTimer);
   petButton.dataset.state = state;
   renderPetMotion();
-  if (duration) petStateTimer = setTimeout(() => setPetState('idle'), duration);
+  if (duration) petStateTimer = setTimeout(() => setPetState(restingState), duration);
 }
-petVideo.addEventListener('ended', () => {
-  if (petButton.dataset.state === 'greeting' && currentClip === 'greeting') setPetState('idle');
-});
+for (const video of petVideos) {
+  video.addEventListener('ended', () => {
+    if (video === front && petButton.dataset.state === 'greeting') setPetState(restingState);
+  });
+}
 previewToggle.addEventListener('change', () => {
   try { localStorage.setItem('habitat.whalePreview', previewToggle.checked ? 'on' : 'off'); } catch {}
   renderPetMotion();
@@ -181,6 +232,7 @@ function setCaption(label, content) {
 }
 function renderCompanion(resident) {
   if (!resident) {
+    restingState = 'idle';
     $('petName').textContent = 'Mori';
     $('petActivity').textContent = '等待第一次相遇';
     $('petMood').textContent = '还未进场';
@@ -197,7 +249,8 @@ function renderCompanion(resident) {
   const mood = resident.energy < 30 ? '精力偏低' : resident.safety < 30 ? '安全偏低' : '状态平稳';
   $('petMood').textContent = mood;
   $('petSummary').textContent = resident.intention ? `上次想做：${resident.intention}` : mood;
-  if ($('petButton').dataset.state === 'idle' || $('petButton').dataset.state === 'sleepy') setPetState(resident.energy < 30 ? 'sleepy' : 'idle');
+  restingState = resident.energy < 30 ? 'sleepy' : 'idle';
+  if (['idle', 'sleepy'].includes(petButton.dataset.state)) setPetState(restingState);
 }
 async function api(path, options) {
   const response = await fetch(path, options);
@@ -333,7 +386,7 @@ $('send').onclick = async () => {
   $('send').disabled = true;
   setPetState('thinking'); setCaption('正在想', 'Mori 正在整理想说的话…');
   try { await api(`/residents/${encodeURIComponent(resident)}/conversation`, {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message})}); $('chatMessage').value = ''; await refresh(); setPetState('speaking', 1800); }
-  catch (error) { $('message').textContent = error.message; setCaption('连接遇到问题', '这句话暂时没能送达，可以再试一次。'); setPetState('idle'); }
+  catch (error) { $('message').textContent = error.message; setCaption('连接遇到问题', '这句话暂时没能送达，可以再试一次。'); setPetState(restingState); }
   finally { $('send').disabled = !aiConfigured || !$('chatResident').value; }
 };
 $('chatResident').onchange = () => Promise.all([loadConversation(), loadMemories()]).catch(error => $('message').textContent = error.message);
@@ -349,7 +402,7 @@ $('addMemory').onclick = async () => {
 $('chatMessage').onkeydown = event => { if (event.key === 'Enter') $('send').click(); };
 $('petButton').onclick = () => { setPetState('greeting', previewToggle.checked && !reducedMotion.matches && !unsupportedClips.has('greeting') ? 15000 : 1100); $('chatMessage').focus(); };
 $('chatMessage').onfocus = () => { if (!['thinking', 'greeting', 'speaking'].includes($('petButton').dataset.state)) setPetState('listening'); };
-$('chatMessage').onblur = () => { if ($('petButton').dataset.state === 'listening') setPetState('idle'); };
+$('chatMessage').onblur = () => { if ($('petButton').dataset.state === 'listening') setPetState(restingState); };
 function showAiStatus(status) {
   aiConfigured = status.configured;
   const source = status.key_source === 'local_config' ? '（本机配置）' : status.key_source === 'environment' ? '（环境变量）' : '';

@@ -2,6 +2,12 @@
 
 > Update this file before ending every meaningful AI work unit. It is the short, current-state entry point for the next AI; keep durable product decisions in `README.md` and detailed evidence in `docs/`.
 
+## Mori transition playback — 2026-11-20
+
+- `src/cyber_habitat/habitat.html` now uses two inline video elements and a 180 ms crossfade. The active clip remains visible while the incoming clip loads and starts presenting frames, so action switches no longer deliberately show the larger fallback illustration. Stale play callbacks are ignored. Greeting returns to the resident's current idle/sleepy state.
+- The same four local clips are used. Source animation scale jumps, dropped frames within a clip, and a larger motion library remain separate work. No API, database, or deployment change. Reload the existing local page; HTML is read from disk on each request.
+- Local and remote main matched after fetch. Commit: `Crossfade Mori action clips without flashing the fallback`. Staged whitespace and added secret-pattern checks only; this change has not been exercised in a browser. Next: confirm switch appearance and inspect original per-frame clip sizes if any jump remains.
+
 ## Private two-person room
 
 - Implemented a standalone loopback HTTP room in `src/cyber_habitat/duo.py` and `duo.html`, on port 8766. Two distinct bearer invitations survive restarts, and text persists in ignored `data/duo.sqlite3`. The existing Mori chat, API credentials and world data are separate. No AI or animation changes.

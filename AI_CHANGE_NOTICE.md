@@ -91,3 +91,12 @@ Documentation updates and ordinary additive work should still be listed in `AI_H
 - Validation: staged diff whitespace and credential pattern checks. No runtime or off-device test run.
 - Next owner: validate two clients under a private HTTPS origin; see `docs/two-person-room.md`.
 - Commit: `Add a private two-person chat room` (this commit).
+
+### 2026-11-20 — Crossfade Mori clips
+
+- Previous owner/source: the community preview in commit `217c0bf`.
+- Changed files: `src/cyber_habitat/habitat.html` and documentation.
+- Reason and effect: retain the current frame until its replacement is ready, then crossfade instead of revealing the static art between videos. No API or data changes.
+- Validation: staged whitespace and added secret-pattern checks; browser playback remains unverified.
+- Next owner: inspect source clip framing if a scale change remains inside the animation.
+- Commit: `Crossfade Mori action clips without flashing the fallback`.
