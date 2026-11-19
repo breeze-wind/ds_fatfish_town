@@ -2,6 +2,12 @@
 
 > Update this file before ending every meaningful AI work unit. It is the short, current-state entry point for the next AI; keep durable product decisions in `README.md` and detailed evidence in `docs/`.
 
+## Private two-person room
+
+- Implemented a standalone loopback HTTP room in `src/cyber_habitat/duo.py` and `duo.html`, on port 8766. Two distinct bearer invitations survive restarts, and text persists in ignored `data/duo.sqlite3`. The existing Mori chat, API credentials and world data are separate. No AI or animation changes.
+- Start with `Start-Duo.cmd`; installed a local shortcut wrapper at `E:\Mori\Start-Duo.cmd`. For private HTTPS access and the JSON protocol, see `docs/two-person-room.md`.
+- Fetched `origin/main` before changes; no divergence. Milestone: `Add a private two-person chat room`. Checked the staged diff and credential patterns; no runtime test was run. Tailscale was not found in PATH or its standard Windows install path; no network configuration or server deployment was performed. Next: provision a private connection, then verify two client devices can exchange text and reconnect with their original identities.
+
 ## Community 大肥鱼 animation preview — 2026-11-19
 
 - Added optional source-checkout preview files served by `src/cyber_habitat/service.py` and selected by `src/cyber_habitat/habitat.html`. `python -X utf8 scripts/fetch_whale_preview.py` pins and fetches four transparent VP9 WebMs into a Git-ignored directory. Idle, greeting (女仆屈膝礼仪), thinking and low energy use separate clips; chat focus and the existing interaction logic are retained. The browser setting persists locally, and a missing or unsupported clip or the reduced motion setting falls back to the original Mori illustration.

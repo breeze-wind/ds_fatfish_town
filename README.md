@@ -12,6 +12,8 @@ The local browser prototype now puts Mori and the conversation first. It uses an
 
 Mori's dialogue prompt and model parameters are tracked in [the dialogue design notes](docs/mori-dialogue-design.md). One small real-model iteration tested repeated questions with disposable local data: the final sampled sequence avoided unrecorded physical activity and repeated follow-up questions, while the style still needs user review and wider comparison. The browser offers user-controlled saved memories: you can add, review, correct, and delete up to 20 short notes per resident; saved notes are sent with future chats to the connected model. Automatic memory extraction remains future work.
 
+**两人小屋**：独立的双人文字房间，启动 `Start-Duo.cmd` 获取两个座位的邀请。异地使用走私人 HTTPS 入口，原有的 Mori 服务保持本机使用。详见 [两人小屋说明](docs/two-person-room.md)。
+
 ## Quick start
 
 Requires Python 3.11+; the core uses only the standard library.

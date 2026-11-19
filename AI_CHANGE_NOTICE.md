@@ -82,3 +82,12 @@ Documentation updates and ordinary additive work should still be listed in `AI_H
 - Validation performed and result: four transparent clips downloaded; local HTTP and Edge playback checks passed; see `AI_HANDOFF.md`.
 - Original owner notified / next owner: next UI/Android agent should preserve attribution and avoid including noncommercial assets in production builds.
 - Commit: `Preview the community whale-girl animations in Mori` (the commit containing this entry).
+
+### 双人小屋
+
+- Previous owner/source: the Mori home bar from `d30b6dd`.
+- Changed files: `src/cyber_habitat/habitat.html` adds a link to the separate local room. `duo.py` and `duo.html` are new, and `pyproject.toml` packages the new page.
+- Behavior/API/data effects: one two-seat room, JSON submission and polling; separate SQLite file, port and Python process. The main service database, APIs and animation code are untouched.
+- Validation: staged diff whitespace and credential pattern checks. No runtime or off-device test run.
+- Next owner: validate two clients under a private HTTPS origin; see `docs/two-person-room.md`.
+- Commit: `Add a private two-person chat room` (this commit).

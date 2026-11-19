@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="zh-CN">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>两人小屋 · Cyber Habitat</title>
+<style>
+* { box-sizing: border-box }
+body { margin: 0; padding: 16px; background: #eeedf8; color: #282440; font: 16px/1.5 system-ui, sans-serif }
+main { max-width: 690px; margin: auto; padding: 20px; background: white; border-radius: 22px; box-shadow: 0 16px 55px #31274c19 }
+header { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 6px }
+h1 { margin: 0; font-size: 23px }
+#status { color: #625b78; font-size: 13px; margin: 0 }
+#messages { height: min(64dvh, 550px); overflow: auto; list-style: none; margin: 16px 0 10px; padding: 14px; background: #f7f4fb; border-radius: 16px }
+li { max-width: 84%; width: fit-content; margin: 0 auto 12px 0 }
+li.mine { margin: 0 0 12px auto }
+small { display: block; color: #615970; font-size: 12px; margin: 0 5px 3px }
+.mine small { text-align: right }
+li p { margin: 0; background: white; border-radius: 14px; padding: 8px 13px; white-space: pre-wrap; overflow-wrap: anywhere }
+.mine p { background: #57408c; color: white }
+form { display: flex; gap: 8px }
+input { flex: 1; min-width: 0; border: 1px solid #d8cee6; border-radius: 12px; color: inherit; font: inherit; padding: 8px 10px }
+button { border: 0; border-radius: 12px; padding: 8px 15px; background: #57408c; color: white; font: inherit }
+button:disabled { opacity: .6 }
+#error { font-size: 13px; color: #8a263a; margin: 8px 0 0; min-height: 1.5em }
+</style>
+<main>
+<header><h1>两人小屋</h1><p id="status" role="status">正在连接…</p></header>
+<ol id="messages" role="log" aria-label="房间消息"></ol>
+<form id="composer"><input id="text" aria-label="消息" maxlength="1000" placeholder="写点什么…" autocomplete="off" required disabled><button id="send" disabled>发送</button></form>
+<p id="error" role="alert"></p>
+</main>
+<script>
+const $ = id => document.getElementById(id);
+const messages = $('messages');
+const input = $('text');
+const button = $('send');
+let token = '';
+try {
+  if (location.hash) {
+    token = location.hash.slice(1);
+    history.replaceState(null, '', location.pathname + location.search);
+    sessionStorage.setItem('duo.invite', token);
+  } else {
+    token = sessionStorage.getItem('duo.invite') || '';
+  }
+} catch {}
+let cursor = 0, valid = false, sending = false, polling = false, denied = false;
+function controls() {
+  input.disabled = !valid;
+  button.disabled = !valid || sending;
+}
+async function request(method, body) {
+  const response = await fetch('/api/messages' + (method === 'GET' ? '?after=' + cursor : ''), {
+    method, headers: {'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json'},
+    body: body === undefined ? undefined : JSON.stringify(body), signal: AbortSignal.timeout(6500)
+  });
+  if (response.status === 401) {
+    denied = true;
+    valid = false;
+    controls();
+  }
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.error || '请求失败。');
+  return data;
+}
+async function sync() {
+  if (polling || denied || !token) return;
+  polling = true;
+  try {
+    const result = await request('GET');
+    valid = true;
+    $('status').textContent = '已同步 · 你是座位 ' + result.seat;
+    const following = !cursor || messages.scrollHeight - messages.scrollTop - messages.clientHeight < 90;
+    for (const row of result.messages) {
+      const item = document.createElement('li');
+      const mine = row.seat === result.seat;
+      if (mine) item.className = 'mine';
+      const label = document.createElement('small');
+      const time = new Date(row.sent_at).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+      label.textContent = (mine ? '你' : '对方') + ' · ' + time;
+      const body = document.createElement('p');
+      body.textContent = row.text;
+      item.append(label, body);
+      messages.append(item);
+      cursor = row.id;
+    }
+    while (messages.children.length > 300) messages.firstElementChild.remove();
+    if (following) messages.scrollTop = messages.scrollHeight;
+  } catch (error) {
+    $('status').textContent = denied ? error.message : '连接中断，正在重连…';
+  } finally {
+    polling = false;
+    controls();
+  }
+}
+$('composer').addEventListener('submit', async event => {
+  event.preventDefault();
+  if (!valid || sending || !input.value.trim()) return;
+  sending = true;
+  controls();
+  $('error').textContent = '';
+  const draft = input.value;
+  try {
+    await request('POST', {text: draft});
+    if (input.value === draft) input.value = '';
+    messages.scrollTop = messages.scrollHeight;
+    await sync();
+  } catch (error) {
+    $('error').textContent = denied ? error.message : '发送未确认，请先看消息是否已出现。';
+  } finally {
+    sending = false;
+    controls();
+  }
+});
+if (token) {
+  sync();
+  setInterval(sync, 1500);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) sync(); });
+} else {
+  $('status').textContent = '请打开房主发给你的邀请链接。';
+}
+</script>
+</html>
