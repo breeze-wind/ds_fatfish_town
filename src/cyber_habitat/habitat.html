@@ -29,6 +29,11 @@
   .pet-button[data-state="speaking"] .pet-body, .pet-button[data-state="greeting"] .pet-body { animation-duration: 1.55s }
   .pet-button[data-state="listening"] .pet-body { filter: drop-shadow(0 0 20px #e2d8ff85) }
   .pet-button[data-state="sleepy"] .pet-body { animation-duration: 10s }
+  .pet-video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; visibility: hidden; pointer-events: none; filter: drop-shadow(0 14px 16px #18132e55) }
+  .pet-button[data-video="playing"] .pet-video { visibility: visible }
+  .pet-button[data-video="playing"] .pet-body { visibility: hidden }
+  .pet-credit { display: inline-block; margin-top: 6px; color: #f0ebff; background: #25223ee8; border-radius: 8px; padding: 2px 7px; font-size: 10px; pointer-events: auto }
+  .pet-credit[hidden] { display: none }
   @keyframes drift { 50% { transform: translateY(-9px) rotate(-1deg) } }
   .stage-bottom { position: absolute; inset: auto 26px 24px; pointer-events: none }
   .pet-caption { max-width: 390px; background: #25223ee8; color: #fff; border: 1px solid #e9ddff40; border-radius: 17px; padding: 11px 15px; line-height: 1.6; font-size: 14px }
@@ -89,8 +94,8 @@
 <main class="home">
   <section class="stage" aria-label="Mori 的房间">
     <div class="stage-top"><div><strong id="petName">Mori</strong><p id="petActivity">在这里陪着你</p></div><span class="stage-tag" id="petMood">安静待着</span></div>
-    <button class="pet-button" id="petButton" type="button" data-state="idle" aria-label="轻触 Mori 打招呼"><img class="pet-body" src="/mori.webp" alt="鲸鱼娘 Mori" fetchpriority="high"></button>
-    <div class="stage-bottom"><div class="pet-caption"><small id="petCaptionLabel">最近的话</small><span id="petCaption">等你来聊聊。</span></div></div>
+    <button class="pet-button" id="petButton" type="button" data-state="idle" aria-label="轻触 Mori 打招呼"><img class="pet-body" src="/mori.webp" alt="鲸鱼娘 Mori" fetchpriority="high"><video id="petVideo" class="pet-video" muted playsinline preload="none" aria-hidden="true"></video></button>
+    <div class="stage-bottom"><div class="pet-caption"><small id="petCaptionLabel">最近的话</small><span id="petCaption">等你来聊聊。</span></div><a id="petCredit" class="pet-credit" hidden href="https://github.com/PC2005-cloud/dsh-pet#许可" target="_blank" rel="noopener noreferrer">大肥鱼 · 上善无形 / ZipZipPipe / dsh-pet · CC BY-NC-SA 4.0</a></div>
   </section>
   <div class="companion-panel">
     <section class="chat-panel" aria-labelledby="chatTitle">
@@ -103,6 +108,7 @@
   </div>
 </main>
 <div id="settings" class="extras">
+<details><summary>桌宠外观</summary><section><label><input id="whalePreview" type="checkbox" checked> 预览社区大肥鱼动画</label><p class="muted">本机非商业预览。素材缺失、播放器不支持透明 WebM 或系统开启“减少动态效果”时，显示 Mori 插画。</p></section></details>
 <details><summary>模型连接</summary><section><div class="row"><input id="apiKey" type="password" autocomplete="off" placeholder="在本机输入 DeepSeek API Key" aria-label="DeepSeek API Key"><label><input id="rememberKey" type="checkbox" checked> 保存到本机配置</label><button id="connect">连接 DeepSeek</button><button id="disconnect">本次断开</button><button id="forgetKey">删除本机保存的密钥</button></div><p class="muted">保存后密钥以明文写入本项目已忽略的 <code>.env</code>；发送消息时，相关内容会发给 DeepSeek。</p></section></details>
 <details><summary>她记住的事</summary><section><p class="muted">只有你主动保存的内容会成为长期备忘。保存于本机数据库；以后聊天时会随消息发给当前连接的模型（默认 DeepSeek）。你可以修改或删除备忘；删除不会清除原聊天记录。</p><div class="row"><input id="memoryText" maxlength="240" placeholder="例如：我喜欢安静的海边" aria-label="要保存的备忘"><button id="addMemory">记住</button></div><ul id="memories"></ul></section></details>
 <details><summary>世界与居民</summary><section><div class="row"><input id="name" value="Mori" maxlength="80" aria-label="角色名字"><button id="create">让角色进场</button><button id="tick">规则推进一天</button><button id="aiTick" disabled>AI 推进一天</button><button id="refresh">刷新世界</button></div><div id="residents" class="cards"></div></section></details>
@@ -114,11 +120,61 @@ const labels = {'resident.created':'进入世界','resident.memory_added':'记�
 const actions = {rest:'休息',learn:'学习',socialize:'社交',explore:'探索',create:'创作',attack:'攻击'};
 let aiConfigured = false;
 let petStateTimer;
+const petButton = $('petButton');
+const petVideo = $('petVideo');
+const previewToggle = $('whalePreview');
+const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
+const previewClips = {greeting:'greeting', thinking:'thinking', sleepy:'sleepy'};
+const unsupportedClips = new Set();
+let currentClip = null;
+let playbackVersion = 0;
+try { previewToggle.checked = localStorage.getItem('habitat.whalePreview') !== 'off'; } catch {}
+
+function renderPetMotion() {
+  const state = petButton.dataset.state;
+  const clip = previewToggle.checked && !reducedMotion.matches && petVideo.canPlayType('video/webm; codecs="vp9"')
+    ? (previewClips[state] || 'idle') : null;
+  if (clip === currentClip) return;
+  currentClip = clip;
+  const version = ++playbackVersion;
+  delete petButton.dataset.video;
+  $('petCredit').hidden = true;
+  petVideo.pause();
+  if (!clip || unsupportedClips.has(clip)) {
+    petVideo.removeAttribute('src');
+    petVideo.load();
+    return;
+  }
+  petVideo.muted = true;
+  petVideo.loop = clip !== 'greeting';
+  petVideo.src = `/whale-preview/${clip}.webm`;
+  petVideo.play().then(() => {
+    if (version !== playbackVersion) return;
+    petButton.dataset.video = 'playing';
+    $('petCredit').hidden = false;
+  }).catch(error => {
+    if (version !== playbackVersion) return;
+    if (error.name === 'NotSupportedError') unsupportedClips.add(clip);
+    currentClip = null;
+    if (state === 'greeting') setPetState('idle');
+  });
+}
+
 function setPetState(state, duration = 0) {
   clearTimeout(petStateTimer);
-  $('petButton').dataset.state = state;
-  if (duration) petStateTimer = setTimeout(() => { $('petButton').dataset.state = 'idle'; }, duration);
+  petButton.dataset.state = state;
+  renderPetMotion();
+  if (duration) petStateTimer = setTimeout(() => setPetState('idle'), duration);
 }
+petVideo.addEventListener('ended', () => {
+  if (petButton.dataset.state === 'greeting' && currentClip === 'greeting') setPetState('idle');
+});
+previewToggle.addEventListener('change', () => {
+  try { localStorage.setItem('habitat.whalePreview', previewToggle.checked ? 'on' : 'off'); } catch {}
+  renderPetMotion();
+});
+reducedMotion.addEventListener('change', renderPetMotion);
+renderPetMotion();
 function setCaption(label, content) {
   $('petCaptionLabel').textContent = label;
   $('petCaption').textContent = content;
@@ -291,7 +347,7 @@ $('addMemory').onclick = async () => {
   finally { $('addMemory').disabled = false; }
 };
 $('chatMessage').onkeydown = event => { if (event.key === 'Enter') $('send').click(); };
-$('petButton').onclick = () => { setPetState('greeting', 1100); $('chatMessage').focus(); };
+$('petButton').onclick = () => { setPetState('greeting', previewToggle.checked && !reducedMotion.matches && !unsupportedClips.has('greeting') ? 15000 : 1100); $('chatMessage').focus(); };
 $('chatMessage').onfocus = () => { if (!['thinking', 'greeting', 'speaking'].includes($('petButton').dataset.state)) setPetState('listening'); };
 $('chatMessage').onblur = () => { if ($('petButton').dataset.state === 'listening') setPetState('idle'); };
 function showAiStatus(status) {

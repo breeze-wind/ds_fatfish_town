@@ -20,6 +20,10 @@ from .runtime import MockRuntime
 from .store import SQLiteEventStore
 
 MAX_BODY_BYTES = 16_384
+WHALE_PREVIEWS = {
+    f"/whale-preview/{state}.webm": f"{state}.webm"
+    for state in ("idle", "greeting", "thinking", "sleepy")
+}
 RESIDENT_ID = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
 
 
@@ -162,12 +166,20 @@ class HabitatRequestHandler(BaseHTTPRequestHandler):
             self._error(HTTPStatus.BAD_REQUEST, "Host must be localhost or a loopback address")
             return
         parsed = urlsplit(self.path)
-        if parsed.path in {"/", "/mori.webp"}:
-            if parsed.path == "/":
-                filename, content_type = "habitat.html", "text/html; charset=utf-8"
+        if parsed.path in {"/", "/mori.webp"} or parsed.path in WHALE_PREVIEWS:
+            root = Path(__file__).parent
+            if parsed.path in WHALE_PREVIEWS:
+                file = root / "whale_preview" / WHALE_PREVIEWS[parsed.path]
+                content_type = "video/webm"
+            elif parsed.path == "/":
+                file, content_type = root / "habitat.html", "text/html; charset=utf-8"
             else:
-                filename, content_type = "mori.webp", "image/webp"
-            body = Path(__file__).with_name(filename).read_bytes()
+                file, content_type = root / "mori.webp", "image/webp"
+            try:
+                body = file.read_bytes()
+            except OSError:
+                self._error(HTTPStatus.NOT_FOUND, "static asset unavailable")
+                return
             self.send_response(HTTPStatus.OK)
             self.send_header("Content-Type", content_type)
             self.send_header("Content-Length", str(len(body)))

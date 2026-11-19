@@ -2,6 +2,13 @@
 
 > Update this file before ending every meaningful AI work unit. It is the short, current-state entry point for the next AI; keep durable product decisions in `README.md` and detailed evidence in `docs/`.
 
+## Community 大肥鱼 animation preview — 2026-11-19
+
+- Added optional source-checkout preview files served by `src/cyber_habitat/service.py` and selected by `src/cyber_habitat/habitat.html`. `python -X utf8 scripts/fetch_whale_preview.py` pins and fetches four transparent VP9 WebMs into a Git-ignored directory. Idle, greeting (女仆屈膝礼仪), thinking and low energy use separate clips; chat focus and the existing interaction logic are retained. The browser setting persists locally, and a missing or unsupported clip or the reduced motion setting falls back to the original Mori illustration.
+- `README.md` and `THIRD_PARTY_NOTICES.md` explain how to get the preview and its CC BY-NC-SA 4.0 asset terms. Credits are shown alongside the animation. The original illustration remains the packaged asset; downloaded video bytes remain local.
+- Validation: four clips downloaded and `ffprobe` identified VP9 and alpha for all four. The local service on 127.0.0.1:8765 returned 200 for health, home and all four media URLs, and 404 for an unknown clip. Edge played all four videos; the greeting click focused chat, and the preview switch restored the illustration and persisted on reload. Browser check used synthetic API responses; no model request or remote deployment. `git diff --check` passed.
+- Git fetch succeeded after retry outside the sandbox. Pre-change `main` was 13 commits ahead and zero behind `origin/main`; nothing to merge. Local milestone commit: `Preview the community whale-girl animations in Mori`. Preserve the unrelated, untracked `Start-Mori.cmd`. Next: decide whether to keep this look as reference, then create separately licensed Mori motion assets for the Android release.
+
 ## Whale-girl Mori browser redesign
 
 - Replaced the old whale SVG with original generated whale-girl art. The transparent `src/cyber_habitat/mori.webp` is packaged with the app and served at `/mori.webp`.

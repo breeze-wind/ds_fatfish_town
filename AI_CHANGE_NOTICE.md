@@ -71,3 +71,14 @@ Documentation updates and ordinary additive work should still be listed in `AI_H
 - Changed paths: `src/cyber_habitat/habitat.html`, `service.py`, `mori.webp` and package data. The user asked to replace the giant whale with a whale girl and look for a reusable open source UI.
 - Effects: dashboard cards became a character stage and conversation panel. Existing element hooks for chat, memory and world controls are retained. Added a static illustration endpoint. No database migration.
 - Attribution and delivery status are in `THIRD_PARTY_NOTICES.md` and `AI_HANDOFF.md`.
+
+### 2026-11-19 — Play community whale-girl loops in the Mori preview
+
+- Previous owner/source: Mori browser redesign in `d30b6dd`; earlier service and interaction code by prior project agents.
+- Changed files: `src/cyber_habitat/habitat.html`, `src/cyber_habitat/service.py`; added `scripts/fetch_whale_preview.py` and attribution.
+- Why this changed: user asked to try the community 大肥鱼 appearance after reviewing the generated illustration.
+- Behavior/API/data effects: add four allowlisted loopback media paths; original illustration remains available. This changes the browser presentation only; no model, database or World Director changes.
+- Compatibility or migration notes: original illustration is the fallback. The assets are optional, local and separately licensed.
+- Validation performed and result: four transparent clips downloaded; local HTTP and Edge playback checks passed; see `AI_HANDOFF.md`.
+- Original owner notified / next owner: next UI/Android agent should preserve attribution and avoid including noncommercial assets in production builds.
+- Commit: `Preview the community whale-girl animations in Mori` (the commit containing this entry).

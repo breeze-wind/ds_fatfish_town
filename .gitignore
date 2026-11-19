@@ -9,3 +9,4 @@ dist/
 data/*.sqlite3
 data/*.sqlite3-*
 work/
+/src/cyber_habitat/whale_preview/
